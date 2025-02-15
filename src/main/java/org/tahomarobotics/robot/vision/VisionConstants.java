@@ -26,12 +26,12 @@ public class VisionConstants {
      */
     public static final AprilTagFieldLayout FIELD_LAYOUT = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
 
-//    // Loading custom apriltag layout (for use with WPICal)
+    // Loading custom apriltag layout (for use with WPICal)
 //    static {
 //        try {
 //            String fieldLayoutPath = RobotBase.isReal() ?
-//                Filesystem.getOperatingDirectory() + "/deploy/2025-reefscape.json" :
-//                Filesystem.getOperatingDirectory() + "\\src\\main\\deploy\\2025-reefscape.json";
+//                Filesystem.getOperatingDirectory() + "/deploy/resources/2025-reefscape-welded.json" :
+//                Filesystem.getOperatingDirectory() + "\\src\\main\\deploy\\resources\\2025-reefscape-welded.json";
 //            FIELD_LAYOUT = new AprilTagFieldLayout(fieldLayoutPath);
 //        } catch (IOException e) {
 //            throw new RuntimeException(e);
@@ -42,20 +42,39 @@ public class VisionConstants {
 
     // These values are from CAD and may not reflect real life position
 
-    public final static CameraConfiguration COLLECTOR_SIDE = new CameraConfiguration(
-        "Collector Side",
+//    public final static CameraConfiguration COLLECTOR_SIDE = new CameraConfiguration(
+//        "Collector Side",
+//        new Transform3d(
+//            //new Translation3d(0.13522837777536, 0.2286, 0.75736194111635 + 0.041),
+//            new Translation3d(0,0,0.75736194111635 + 0.041),
+//            new Rotation3d(0, Units.degreesToRadians(28.36904629327858), 0)
+//        ),
+//        StandardDeviationScaling.DEFAULT
+//    );
+//
+//    public final static CameraConfiguration SCORING_SIDE = new CameraConfiguration(
+//        "Scoring Side",
+//        new Transform3d(
+//            new Translation3d(0.13522837777536 - 0.32, 0.2286, 0.78215000726482),
+//            new Rotation3d(0, Units.degreesToRadians(-40), Units.degreesToRadians(180))
+//        ),
+//        StandardDeviationScaling.DEFAULT
+//    );
+
+    public final static CameraConfiguration ELEVATOR_SWERVE = new CameraConfiguration(
+        "Elevator Swerve",
         new Transform3d(
-            new Translation3d(0.13522837777536, 0.2286, 0.75736194111635 + 0.041),
-            new Rotation3d(0, Units.degreesToRadians(28.36904629327858), 0)
+            new Translation3d(Units.inchesToMeters(10), Units.inchesToMeters(-11.675), 0.21),
+            new Rotation3d(0, Units.degreesToRadians(-9.97), Units.degreesToRadians(18))
         ),
         StandardDeviationScaling.DEFAULT
     );
 
-    public final static CameraConfiguration SCORING_SIDE = new CameraConfiguration(
-        "Scoring Side",
+    public final static CameraConfiguration CLIMBER_SWERVE = new CameraConfiguration(
+        "Climber Swerve",
         new Transform3d(
-            new Translation3d(0.13522837777536 - 0.32, 0.2286, 0.78215000726482),
-            new Rotation3d(0, Units.degreesToRadians(40), Units.degreesToRadians(180))
+            new Translation3d(Units.inchesToMeters(10), Units.inchesToMeters(11.675), 0.21),
+            new Rotation3d(0, Units.degreesToRadians(-9.97), Units.degreesToRadians(-18))
         ),
         StandardDeviationScaling.DEFAULT
     );
