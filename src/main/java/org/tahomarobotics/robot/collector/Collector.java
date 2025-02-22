@@ -11,7 +11,6 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.wpilibj.RobotState;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.RobotMap;
@@ -233,9 +232,6 @@ public class Collector extends SubsystemIF {
                 if (collectorCurrent.getValueAsDouble() > ALGAE_HOLDING_CURRENT_THRESHOLD && collectionMode == GamePiece.ALGAE) {
                     collectorTransitionToHolding();
                 }
-//                if (indexer.beamBreakTripped()){
-//                    collectorTransitionToDisabled();
-//                }
             }
         }
     }
@@ -262,7 +258,6 @@ public class Collector extends SubsystemIF {
     }
 
     public void collectorTransitionToCollecting() {
-        if (indexer.isCollected()) { return; }
         setTargetCollectorState(TargetCollectorState.COLLECTING);
     }
 

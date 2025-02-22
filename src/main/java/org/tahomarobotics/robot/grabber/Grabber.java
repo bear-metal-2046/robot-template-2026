@@ -8,10 +8,12 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.RobotMap;
 import org.tahomarobotics.robot.indexer.Indexer;
+import org.tahomarobotics.robot.indexer.IndexerConstants;
 import org.tahomarobotics.robot.util.RobustConfigurator;
 import org.tahomarobotics.robot.util.SubsystemIF;
 import org.tahomarobotics.robot.util.signals.LoggedStatusSignal;
@@ -19,7 +21,8 @@ import org.tahomarobotics.robot.util.sysid.SysIdTests;
 
 import java.util.List;
 
-import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.units.Units.Second;
+import static edu.wpi.first.units.Units.Volts;
 import static org.tahomarobotics.robot.grabber.GrabberConstants.*;
 
 @Logged(strategy = Logged.Strategy.OPT_IN)
@@ -50,6 +53,8 @@ public class Grabber extends SubsystemIF {
 
     @Logged
     private GrabberState state = GrabberState.DISABLED;
+
+    private final Timer collectionTimer = new Timer();
 
     // -- Initialization --
 
@@ -95,19 +100,25 @@ public class Grabber extends SubsystemIF {
     }
 
     private void stateMachine() {
-        switch(state) {
-            case COLLECTING -> {
-                if (indexer.isCollected()) {
-                    transitionToHolding();
-                }
+        if (state == GrabberState.COLLECTING) {
+            if (indexer.getState() == IndexerConstants.IndexerState.PASSING && !indexer.isBeanBakeTripped() && !collectionTimer.isRunning()) {
+                collectionTimer.start();
             }
+        }
+
+        if (collectionTimer.hasElapsed(COLLECTION_DELAY)) {
+            transitionToHolding();
+            indexer.transitionToDisabled();
+
+            collectionTimer.stop();
+            collectionTimer.reset();
         }
     }
 
     // Transitions
 
     public void transitionToDisabled() {
-        if (isHolding()) return;
+        if (isHolding()) { return; }
         setTargetState(GrabberState.DISABLED);
     }
 
@@ -116,7 +127,7 @@ public class Grabber extends SubsystemIF {
     }
 
     public void transitionToCollecting() {
-        if (!isArmAtPassing() || isHolding()) return;
+        if (!isArmAtPassing() || isHolding()) { return; }
         setTargetState(GrabberState.COLLECTING);
     }
 

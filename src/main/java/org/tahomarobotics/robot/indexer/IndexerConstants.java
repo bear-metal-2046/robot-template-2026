@@ -13,23 +13,15 @@ public class IndexerConstants {
     // States
 
     public enum IndexerState {
-        DISABLED(MotionType.NONE, 0),
-        COLLECTED(MotionType.NONE, 0),
-        HOLDING(MotionType.NONE, 0),
-        COLLECTING(MotionType.VELOCITY, MAX_VELOCITY),
-        EJECTING(MotionType.VELOCITY, -MAX_VELOCITY),
-        PASSING(MotionType.VELOCITY, MAX_VELOCITY);
+        DISABLED(0),
+        COLLECTING(MAX_VELOCITY),
+        PASSING(MAX_VELOCITY),
+        EJECTING(-MAX_VELOCITY);
 
-        public final MotionType type;
-        public final double value;
+        public final double velocity;
 
-        IndexerState(MotionType type, double value) {
-            this.type = type;
-            this.value = value;
-        }
-
-        public enum MotionType {
-            VELOCITY, NONE
+        IndexerState(double velocity) {
+            this.velocity = velocity;
         }
     }
 
@@ -45,15 +37,8 @@ public class IndexerConstants {
                 .withMotionMagicAcceleration(MAX_ACCELERATION)
                 .withMotionMagicJerk(MAX_JERK)
         ).withSlot0(
-            new Slot0Configs() //Velocity Constants
+            new Slot0Configs()
                 .withKP(0.083374)
-                .withKS(0.17818)
-                .withKV(0.12464)
-                .withKA(0.0039997)
-        ).withSlot1(
-            new Slot1Configs() //Position Constants
-                .withKP(15.944)
-                .withKD(0.27961)
                 .withKS(0.17818)
                 .withKV(0.12464)
                 .withKA(0.0039997)

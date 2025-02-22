@@ -3,7 +3,6 @@ package org.tahomarobotics.robot.indexer;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
-import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.epilogue.Logged;
@@ -11,7 +10,6 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.wpilibj.DigitalInput;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.RobotMap;
 import org.tahomarobotics.robot.util.RobustConfigurator;
@@ -22,7 +20,8 @@ import java.util.List;
 
 import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Volts;
-import static org.tahomarobotics.robot.indexer.IndexerConstants.*;
+import static org.tahomarobotics.robot.indexer.IndexerConstants.IndexerState;
+import static org.tahomarobotics.robot.indexer.IndexerConstants.configuration;
 
 public class Indexer extends SubsystemIF {
     private static final Indexer INSTANCE = new Indexer();
@@ -33,7 +32,7 @@ public class Indexer extends SubsystemIF {
 
     private final TalonFX motor;
 
-    private final DigitalInput beambreak;
+    private final DigitalInput beanBake;
 
     // Status Signals
 
@@ -44,7 +43,6 @@ public class Indexer extends SubsystemIF {
     // Control Requests
 
     private final MotionMagicVelocityVoltage velocityControl = new MotionMagicVelocityVoltage(0);
-    private final MotionMagicVoltage positionControl = new MotionMagicVoltage(0).withSlot(1);
 
     // State
 
@@ -58,7 +56,7 @@ public class Indexer extends SubsystemIF {
 
         motor = new TalonFX(RobotMap.INDEXER_MOTOR);
 
-        beambreak = new DigitalInput(RobotMap.BEAM_BREAK);
+        beanBake = new DigitalInput(RobotMap.BEAM_BREAK);
 
         // Configure hardware
 
@@ -73,8 +71,6 @@ public class Indexer extends SubsystemIF {
         BaseStatusSignal.setUpdateFrequencyForAll(
             RobotConfiguration.MECHANISM_UPDATE_FREQUENCY, position, velocity, current);
         ParentDevice.optimizeBusUtilizationForAll(motor);
-
-        SmartDashboard.putBoolean("arm at position", true);
     }
 
     public static Indexer getInstance() {
@@ -85,60 +81,37 @@ public class Indexer extends SubsystemIF {
 
     private void setTargetState(IndexerState state) {
         this.state = state;
-
-        switch (state.type) {
-            case VELOCITY -> motor.setControl(velocityControl.withVelocity(state.value));
-            case NONE -> motor.stopMotor();
-        }
+        motor.setControl(velocityControl.withVelocity(state.velocity));
     }
 
     private void stateMachine() {
-        switch (state) {
-            case COLLECTING -> {
-//                if (beamBreakTripped() && isArmAtPassing()) transitionToPassing();
-//                if (beamBreakTripped() && !isArmAtPassing()) transitionToHolding();
-            }
-            case PASSING -> {
-                if (!beamBreakTripped()) {
-                    transitionToCollected();
-                }
-            }
-            case HOLDING -> {
-                if (isArmAtPassing()) {
-                    transitionToPassing();
-                }
-            }
-            default -> {}
+        if (state == IndexerState.COLLECTING && isBeanBakeTripped()) {
+            transitionToPassing();
         }
     }
 
     // Transitions
 
     public void transitionToDisabled() {
-        if (state == IndexerState.COLLECTING || state == IndexerState.EJECTING) {
-            setTargetState(IndexerState.DISABLED);
-        }
-    }
-
-    public void transitionToCollected() {
-        setTargetState(IndexerState.COLLECTED);
+        setTargetState(IndexerState.DISABLED);
     }
 
     public void transitionToCollecting() {
-        if (state != IndexerState.DISABLED) return;
         setTargetState(IndexerState.COLLECTING);
     }
 
-    public void transitionToHolding() {
-        setTargetState(IndexerState.HOLDING);
-    }
-
-    private void transitionToPassing() {
+    public void transitionToPassing() {
         setTargetState(IndexerState.PASSING);
     }
 
     public void transitionToEjecting() {
         setTargetState(IndexerState.EJECTING);
+    }
+
+    // Getters
+
+    public IndexerState getState() {
+        return state;
     }
 
     // -- Getter(s) --
@@ -158,52 +131,9 @@ public class Indexer extends SubsystemIF {
         return current.getValueAsDouble();
     }
 
-    // -- Triggers --
     @Logged
-    public boolean beamBreakTripped() {
-        return !beambreak.get();
-    }
-
-    @Logged
-    public boolean isCollecting() {
-        return state == IndexerState.COLLECTING;
-    }
-
-    @Logged
-    public boolean isEjecting() {
-        return state == IndexerState.EJECTING;
-    }
-
-    @Logged
-    public boolean isPassing() {
-        return state == IndexerState.PASSING;
-    }
-
-    @Logged
-    public boolean isCollected() {
-        return state == IndexerState.COLLECTED;
-    }
-
-    @Logged
-    public boolean isHolding() {
-        return state == IndexerState.HOLDING;
-    }
-
-    @Logged
-    public boolean isDisabled() {
-        return state == IndexerState.DISABLED;
-    }
-
-    @Logged
-    public boolean isArmAtPassing() {
-        // TODO: Check if the arm is in the collected position
-        return SmartDashboard.getBoolean("arm at position", true);
-    }
-
-    // -- Setter(s) --
-
-    private void zeroPosition() {
-        motor.setPosition(0);
+    public boolean isBeanBakeTripped() {
+        return !beanBake.get();
     }
 
     // -- Periodic --
@@ -211,6 +141,7 @@ public class Indexer extends SubsystemIF {
     @Override
     public void periodic() {
         BaseStatusSignal.refreshAll(position, velocity, current);
+
         stateMachine();
     }
 
@@ -227,6 +158,7 @@ public class Indexer extends SubsystemIF {
                 Volts.of(3)
             ));
     }
+
 }
 
 
