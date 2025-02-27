@@ -3,7 +3,6 @@ package org.tahomarobotics.robot;
 import edu.wpi.first.epilogue.Epilogue;
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.epilogue.NotLogged;
-import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -90,8 +89,8 @@ public class Robot extends TimedRobot {
         commandScheduler.onCommandFinish(command -> {
             if (RobotState.isAutonomous()) { Logger.info(command.getName() + " finished!"); }
         });
-        commandScheduler.onCommandInterrupt(command -> {
-            if (RobotState.isAutonomous()) { Logger.warn(command.getName() + " interrupted!"); }
+        commandScheduler.onCommandInterrupt((command, by) -> {
+            if (RobotState.isAutonomous()) { Logger.warn(command.getName() + " interrupted by {}!", by.map(Command::getName).orElse("Nothing")); }
         });
     }
 

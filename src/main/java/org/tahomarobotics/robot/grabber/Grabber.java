@@ -174,6 +174,11 @@ public class Grabber extends SubsystemIF {
         stateMachine();
     }
 
+    @Override
+    public void onDisabledInit() {
+        transitionToDisabled();
+    }
+
     // -- Autonomous --
 
     @Override

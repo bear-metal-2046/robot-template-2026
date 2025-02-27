@@ -145,6 +145,11 @@ public class Indexer extends SubsystemIF {
         stateMachine();
     }
 
+    @Override
+    public void onDisabledInit() {
+        transitionToDisabled();
+    }
+
     // -- SysId --
 
     @Override

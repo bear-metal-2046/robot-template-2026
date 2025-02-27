@@ -11,7 +11,6 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.wpilibj.RobotState;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.RobotMap;
@@ -301,6 +300,14 @@ public class Collector extends SubsystemIF {
     public void periodic() {
         statusSignals.refreshAll();
         collectorStateMachine();
+    }
+
+    @Override
+    public void onDisabledInit() {
+        if (targetDeployState != TargetDeployState.ZEROED) {
+            deploymentTransitionToStow();
+            collectorTransitionToDisabled();
+        }
     }
 
     // -- Collection Mode --
