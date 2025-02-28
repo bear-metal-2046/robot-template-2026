@@ -5,6 +5,7 @@ import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.epilogue.NotLogged;
 import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import org.tahomarobotics.robot.auto.Autonomous;
@@ -59,6 +60,8 @@ public class Robot extends TimedRobot {
         oi.initialize()
     );
 
+    private double autoStartTime;
+
     // Robot
 
     public Robot() {
@@ -111,16 +114,26 @@ public class Robot extends TimedRobot {
     @Override
     public void autonomousInit() {
         subsystems.forEach(SubsystemIF::onAutonomousInit);
+
         Command autoCommmand = autonomous.getSelectedAuto();
         Logger.info("Running Auto: " + autoCommmand.getName());
+
         autoCommmand.schedule();
         if (!autoCommmand.isScheduled()) {
             Logger.info(autoCommmand.getName() + " was canceled by another command before it ran.");
         }
+
+        autoStartTime = Timer.getTimestamp();
     }
 
     @Override
     public void autonomousPeriodic() {}
+
+    @Override
+    public void autonomousExit() {
+        double duration = Timer.getTimestamp() - autoStartTime;
+        Logger.info("Autonomous took {} seconds.", duration);
+    }
 
     // Teleop
 
