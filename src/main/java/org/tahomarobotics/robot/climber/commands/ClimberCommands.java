@@ -6,28 +6,37 @@ import org.tahomarobotics.robot.climber.Climber;
 import org.tahomarobotics.robot.climber.ClimberConstants;
 import org.tahomarobotics.robot.collector.Collector;
 import org.tahomarobotics.robot.collector.CollectorConstants;
+import org.tahomarobotics.robot.windmill.Windmill;
 
 public class ClimberCommands {
     private static final Climber climber = Climber.getInstance();
 
     public static Command createZeroCommand(Climber climber) {
         return climber.runOnce(climber::zeroPosition)
-                        .andThen(climber::stow)
-                        .onlyIf(() -> climber.getClimbState() == Climber.ClimberState.ZEROED);
+                      .andThen(Commands.waitUntil(
+                          () ->
+                              Collector.getInstance().getTargetDeployState() == CollectorConstants.TargetDeployState.CORAL_COLLECT ||
+                              Collector.getInstance().getTargetDeployState() == CollectorConstants.TargetDeployState.ALGAE_COLLECT))
+                      .andThen(climber.runOnce(climber::stow))
+                      .onlyIf(() -> climber.getClimbState() == Climber.ClimberState.ZEROED);
     }
 
     public static Command getClimberCommand() {
-         return Commands.deferredProxy(() -> switch (climber.getClimbState()) {
-             case STOWED -> Commands.runOnce(climber::deploy);
-             case DEPLOYED -> Commands.runOnce(climber::climb)
-                                      .andThen(Commands.runOnce(climber::deploySolenoid))
-                                      .andThen(Commands.waitUntil(climber::isAtTargetPosition))
-                                      .andThen(Commands.runOnce(climber::disableClimberMotors))
-                                      .andThen(Commands.waitSeconds(ClimberConstants.RATCHET_SOLENOID_DEPLOY_TIME))
-                                      .andThen(Commands.runOnce(climber::disableSolenoid));
-             case CLIMBED -> Commands.runOnce(climber::stow);
-             case ZEROED -> Commands.none();
-             }
-         );
+        return Commands.deferredProxy(
+            () ->
+                switch (climber.getClimbState()) {
+                    case STOWED -> Commands.runOnce(climber::deploy)
+                                           .andThen(Commands.runOnce(() -> Windmill.getInstance().setElevatorHeight(0.005)))
+                                           .andThen(Commands.runOnce(() -> Windmill.getInstance().setArmPosition(0.5)));
+                    case DEPLOYED -> Commands.runOnce(climber::climb)
+                                             .andThen(Commands.runOnce(climber::deploySolenoid))
+                                             .andThen(Commands.waitUntil(climber::isAtTargetPosition))
+                                             .andThen(Commands.runOnce(climber::disableClimberMotors))
+                                             .andThen(Commands.waitSeconds(ClimberConstants.RATCHET_SOLENOID_DEPLOY_TIME))
+                                             .andThen(Commands.runOnce(climber::disableSolenoid));
+                    case CLIMBED -> Commands.runOnce(climber::stow);
+                    case ZEROED -> Commands.none();
+                }
+        );
     }
 }

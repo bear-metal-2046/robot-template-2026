@@ -6,16 +6,17 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 public class ClimberConstants {
-    public static final double MOTOR_TO_CLIMBER_GEAR_RATIO = (8.0 / 72.0) * (20.0 / 72.0) * (16.0 / 48.0);
-    public static final double CLIMBER_ZERO_POSITION = 0;
+    // TODO: Need to diagnose ratio, position readings are inaccurate with reality
+    public static final double MOTOR_TO_CLIMBER_GEAR_RATIO = (8.0 / 72.0) * (18.0 / 72.0) * (16.0 / 48.0);
+    public static final double CLIMBER_ZERO_POSITION = 0.0;
 
-    public static final double STOW_POSITION = 0.04;
-    public static final double DEPLOY_POSITION = 0.15;
-    public static final double CLIMB_POSITION = -0.07;
+    public static final double STOW_POSITION = 0.308; // Needs to be changed to not interfere with collector or arm
+    public static final double DEPLOY_POSITION = 0.39;
+    public static final double CLIMB_POSITION = -0.0075; // Probably needs to be tuned with new climber
 
-    public static final double CLIMB_POSITION_TOLERANCE = 0.005;
+    public static final double CLIMB_POSITION_TOLERANCE = 0.001;
 
-    public static final double RATCHET_SOLENOID_DEPLOY_TIME = 0.5;
+    public static final double RATCHET_SOLENOID_DEPLOY_TIME = 1.0; // Probably should decrease
     public static final double RATCHET_SOLENOID_DEPLOY_PERCENTAGE = 1;
 
     private static final double CLIMBER_MAX_VELOCITY = 0.125;
@@ -25,25 +26,25 @@ public class ClimberConstants {
     public static final TalonFXConfiguration climberMotorConfig = new TalonFXConfiguration()
         .withSlot0(
             new Slot0Configs() // Unladen
-                .withGravityType(GravityTypeValue.Arm_Cosine)
-                .withKP(29.236)
-                .withKD(1.4369)
-                .withKS(0.11051)
-                .withKV(10.452)
-                .withKA(0.14674)
+                               .withGravityType(GravityTypeValue.Arm_Cosine)
+                               .withKP(29.236)
+                               .withKD(1.4369)
+                               .withKS(0.11051)
+                               .withKV(10.452)
+                               .withKA(0.14674)
         )
         .withSlot1(
             new Slot1Configs() // Laden
-                .withGravityType(GravityTypeValue.Arm_Cosine)
-                .withKP(29.236 * 12)
-                .withKI(75)
-                .withKD(1.4369)
-                .withKS(0.11051)
-                .withKV(10.452)
-                .withKA(0.14674)
+                               .withGravityType(GravityTypeValue.Arm_Cosine)
+                               .withKP(29.236 * 12)
+                               .withKI(75)
+                               .withKD(1.4369)
+                               .withKS(0.11051)
+                               .withKV(10.452)
+                               .withKA(0.14674)
         )
         .withMotorOutput(new MotorOutputConfigs()
-                             .withNeutralMode(NeutralModeValue.Coast)
+                             .withNeutralMode(NeutralModeValue.Brake) // Would be better if we could get it to work with coast
                              .withInverted(InvertedValue.Clockwise_Positive))
         .withMotionMagic(new MotionMagicConfigs()
                              .withMotionMagicCruiseVelocity(CLIMBER_MAX_VELOCITY)
