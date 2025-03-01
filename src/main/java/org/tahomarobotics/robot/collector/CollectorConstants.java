@@ -40,7 +40,7 @@ public class CollectorConstants {
     // States
 
     public static final double ALGAE_HOLDING_CURRENT_THRESHOLD = 30;
-    private static final double ALGAE_HOLDING_VOLTAGE = 2;
+    private static final double ALGAE_HOLDING_VOLTAGE = 2.5;
 
     // -- Identity --
 
