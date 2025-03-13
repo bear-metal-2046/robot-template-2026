@@ -25,7 +25,6 @@ package org.tahomarobotics.robot.collector;
 import edu.wpi.first.math.Pair;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import org.tahomarobotics.robot.indexer.Indexer;
 
 public class CollectorCommands {
     public static Command createZeroCommand(Collector collector) {
@@ -58,7 +57,7 @@ public class CollectorCommands {
     /** @return On true and on false commands. */
     public static Pair<Command, Command> createCollectorControlCommands(Collector collector) {
         Command onTrue = collector.runOnce(() -> {
-            if (collector.isDeploymentCollecting() && collector.isNotHoldingAlgae() && !Indexer.getInstance().isBeanBakeTripped()) {
+            if (collector.isDeploymentCollecting() && collector.isNotHoldingAlgae()) {
                 collector.collectorTransitionToCollecting();
             }
         });

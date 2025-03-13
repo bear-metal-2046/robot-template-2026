@@ -107,12 +107,6 @@ public class Indexer extends SubsystemIF {
         motor.setControl(velocityControl.withVelocity(state.velocity));
     }
 
-    private void stateMachine() {
-        if (state == IndexerState.COLLECTING && isBeanBakeTripped()) {
-            transitionToPassing();
-        }
-    }
-
     // Transitions
 
     public void transitionToDisabled() {
@@ -148,8 +142,6 @@ public class Indexer extends SubsystemIF {
     public void periodic() {
         LoggedStatusSignal.refreshAll(statusSignals);
         LoggedStatusSignal.log("Indexer/", statusSignals);
-
-        stateMachine();
     }
 
     @Override

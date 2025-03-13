@@ -128,8 +128,7 @@ public class Grabber extends SubsystemIF {
 
     private void stateMachine() {
         if (state == GrabberState.COLLECTING) {
-            if (current.getValueAsDouble() > COLLECTION_CURRENT_THRESHOLD &&
-                Collector.getInstance().getCollectionMode() != GamePiece.ALGAE) {
+            if (indexer.isBeanBakeTripped() && Collector.getInstance().getCollectionMode() != GamePiece.ALGAE) {
                 collectionTimer.start();
 
                 belowTimer.reset();
