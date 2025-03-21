@@ -24,6 +24,7 @@ package org.tahomarobotics.robot.windmill.commands;
 
 import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.util.Units;
+import org.tahomarobotics.robot.windmill.WindmillConstants;
 import org.tahomarobotics.robot.windmill.WindmillState;
 import org.tahomarobotics.robot.windmill.WindmillTrajectory;
 import org.tinylog.Logger;
@@ -51,24 +52,24 @@ public class WindmillTrajectories {
         create(TrajectoryState.CORAL_COLLECT, TrajectoryState.LOW_DESCORE, new WindmillState[]{collectLift});
         create(TrajectoryState.HIGH_DESCORE, TrajectoryState.CORAL_COLLECT, new WindmillState[]{collectLift});
         create(TrajectoryState.LOW_DESCORE, TrajectoryState.CORAL_COLLECT, new WindmillState[]{collectLift});
-        create(TrajectoryState.HIGH_DESCORE, SMALL_PULLBACK, TrajectoryState.LOW_DESCORE);
-        create(TrajectoryState.LOW_DESCORE, SMALL_PULLBACK, TrajectoryState.HIGH_DESCORE);
+        create(TrajectoryState.HIGH_DESCORE, SMALL_PULLBACK, TrajectoryState.LOW_DESCORE, WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS);
+        create(TrajectoryState.LOW_DESCORE, SMALL_PULLBACK, TrajectoryState.HIGH_DESCORE, WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS);
 
         create(TrajectoryState.STOW, TrajectoryState.LOW_DESCORE);
         create(TrajectoryState.STOW, TrajectoryState.HIGH_DESCORE);
-        create(TrajectoryState.LOW_DESCORE, TrajectoryState.STOW);
-        create(TrajectoryState.HIGH_DESCORE, TrajectoryState.STOW);
+        create(WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS, TrajectoryState.LOW_DESCORE, TrajectoryState.STOW);
+        create(WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS, TrajectoryState.HIGH_DESCORE, TrajectoryState.STOW);
 
-        create(TrajectoryState.HIGH_DESCORE, SMALL_PULLBACK, TrajectoryState.ALGAE_PRESCORE);
-        create(TrajectoryState.LOW_DESCORE, SMALL_PULLBACK, TrajectoryState.ALGAE_PRESCORE);
+        create(TrajectoryState.HIGH_DESCORE, SMALL_PULLBACK, TrajectoryState.ALGAE_PRESCORE, WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS);
+        create(TrajectoryState.LOW_DESCORE, SMALL_PULLBACK, TrajectoryState.ALGAE_PRESCORE, WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS);
 
-        create(TrajectoryState.STOW, TrajectoryState.ALGAE_PRESCORE);
+        create(WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS, TrajectoryState.STOW, TrajectoryState.ALGAE_PRESCORE);
         create(TrajectoryState.STOW, TrajectoryState.ALGAE_COLLECT);
 
         create(TrajectoryState.ALGAE_SCORE, TrajectoryState.STOW);
-        create(TrajectoryState.ALGAE_PRESCORE, TrajectoryState.STOW);
-        create(TrajectoryState.ALGAE_COLLECT, TrajectoryState.STOW);
-        create(TrajectoryState.ALGAE_PRESCORE, TrajectoryState.ALGAE_SCORE);
+        create(WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS, TrajectoryState.ALGAE_PRESCORE, TrajectoryState.STOW);
+        create(WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS, TrajectoryState.ALGAE_COLLECT, TrajectoryState.STOW);
+        create(WindmillTrajectory.WindmillConstraints.ALGAE_CONSTRAINTS, TrajectoryState.ALGAE_PRESCORE, TrajectoryState.ALGAE_SCORE);
 
         // Algae - Coral
         create(TrajectoryState.L2, SMALL_PULLBACK, TrajectoryState.HIGH_DESCORE);
@@ -101,8 +102,6 @@ public class WindmillTrajectories {
         create(TrajectoryState.CORAL_COLLECT, TrajectoryState.L4, new WindmillState[]{collectLift});
         create(TrajectoryState.L4, TrajectoryState.CORAL_COLLECT, new WindmillState[]{collectLift});
 
-//        create(TrajectoryState.L1, LARGE_PULLBACK, TrajectoryState.L3);
-//        create(TrajectoryState.L1, LARGE_PULLBACK, TrajectoryState.L4);
         create(TrajectoryState.L2, LARGE_PULLBACK, TrajectoryState.L3);
         create(TrajectoryState.L2, LARGE_PULLBACK, TrajectoryState.L4);
         create(TrajectoryState.L3, LARGE_PULLBACK, TrajectoryState.L2);
@@ -155,6 +154,32 @@ public class WindmillTrajectories {
         }
     }
 
+    private static void create(TrajectoryState start, double pullback, TrajectoryState end, WindmillTrajectory.WindmillConstraints constraints) {
+        double elev = (start.elev + end.elev) / 2;
+        double arm = (start.arm + end.arm) / 2 - pullback;
+        var pos = new WindmillState(
+            0,
+            new WindmillState.ElevatorState(elev, 0, 0),
+            new WindmillState.ArmState(arm, 0, 0)
+        );
+        create(start, end, new WindmillState[]{pos}, constraints);
+    }
+
+    private static void create(TrajectoryState start, TrajectoryState end, WindmillState midPositions[], WindmillTrajectory.WindmillConstraints constraints) {
+        WindmillState[] states = new WindmillState[2 + midPositions.length];
+        states[0] = start.state;
+        states[states.length - 1] = end.state;
+        for (int i = 0; i < midPositions.length; i++) {
+            states[i + 1] = midPositions[i];
+        }
+        String name = start.name() + "_TO_" + end.name();
+        try {
+            trajectories.put(new Pair<>(start, end), new WindmillTrajectory(name, states, constraints));
+        } catch (Exception e) {
+            System.err.println("Trajectory not found for " + name);
+        }
+    }
+
     private static void create(TrajectoryState... trajectoryStates) {
         TrajectoryState start = trajectoryStates[0];
         TrajectoryState end = trajectoryStates[trajectoryStates.length - 1];
@@ -165,6 +190,22 @@ public class WindmillTrajectories {
         String name = start.name() + "_TO_" + end.name();
         try {
             WindmillTrajectory trajectory = new WindmillTrajectory(name, states);
+            trajectories.put(new Pair<>(start, end), trajectory);
+        } catch (Exception e) {
+            System.err.println("Trajectory not found for " + name);
+        }
+    }
+
+    private static void create(WindmillTrajectory.WindmillConstraints constraints, TrajectoryState... trajectoryStates) {
+        TrajectoryState start = trajectoryStates[0];
+        TrajectoryState end = trajectoryStates[trajectoryStates.length - 1];
+        WindmillState[] states = new WindmillState[trajectoryStates.length];
+        for (int i = 0; i < states.length; i++) {
+            states[i] = trajectoryStates[i].state;
+        }
+        String name = start.name() + "_TO_" + end.name();
+        try {
+            WindmillTrajectory trajectory = new WindmillTrajectory(name, states, constraints);
             trajectories.put(new Pair<>(start, end), trajectory);
         } catch (Exception e) {
             System.err.println("Trajectory not found for " + name);

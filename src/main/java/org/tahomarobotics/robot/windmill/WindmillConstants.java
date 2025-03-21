@@ -119,6 +119,8 @@ public class WindmillConstants {
     public static final double ARM_MAX_ACCELERATION = ARM_MAX_VELOCITY * 4 * 4; // Radians / sec^2
     public static final double ARM_MAX_JERK = ARM_MAX_ACCELERATION * 4; // Radians / sec^3
 
+    public static final double ARM_ALGAE_ACCELERATION_REDUCTION = ARM_MAX_ACCELERATION / 1.4;
+
     // Constants
 
     public static final double ARM_LENGTH = 0.6540246; // Meters

@@ -32,11 +32,6 @@ import java.util.Optional;
 
 public class WindmillTrajectory {
 
-    private static final double ELEV_MAX_VEL = WindmillConstants.ELEVATOR_MAX_VELOCITY;
-    private static final double ELEV_MAX_ACC = WindmillConstants.ELEVATOR_MAX_ACCELERATION;
-    private static final double ARM_MAX_VEL = WindmillConstants.ARM_MAX_VELOCITY;
-    private static final double ARM_MAX_ACC = WindmillConstants.ARM_MAX_ACCELERATION;
-
     protected record WindmillProfile(MotionProfile elev, MotionProfile arm) {}
 
     public final String name;
@@ -57,14 +52,29 @@ public class WindmillTrajectory {
         profiles = new WindmillProfile[states.length - 1];
         WindmillProfile prior = null;
         for (int i = 0; i < profiles.length; i++) {
-            prior = profiles[i] = createProfile(prior, i, states);
+            prior = profiles[i] = createProfile(prior, i, states, WindmillConstraints.CORAL_CONSTRAINTS); // Default to coral constraints
+
+        }
+    }
+
+    public WindmillTrajectory(String name, WindmillState[] states, WindmillConstraints constraints) throws MotionProfile.MotionProfileException {
+        this.name = name;
+        this.states = states;
+        if (states == null || states.length < 2) {
+            throw new IllegalArgumentException("states either null or less than two");
+        }
+
+
+        profiles = new WindmillProfile[states.length - 1];
+        WindmillProfile prior = null;
+        for (int i = 0; i < profiles.length; i++) {
+            prior = profiles[i] = createProfile(prior, i, states, constraints);
 
         }
     }
 
 
-    private WindmillProfile createProfile(WindmillProfile prior, int index, WindmillState[] states) throws MotionProfile.MotionProfileException {
-
+    private WindmillProfile createProfile(WindmillProfile prior, int index, WindmillState[] states, WindmillConstraints constraints) throws MotionProfile.MotionProfileException {
         double startTime = 0;
         double elevStartVelocity = 0;
         double armStartVelocity = 0;
@@ -84,13 +94,13 @@ public class WindmillTrajectory {
             double currentDirection = Math.signum(states[index + 1].elevatorState().heightMeters() - states[index].elevatorState().heightMeters());
             double nextDirection = Math.signum(states[index + 2].elevatorState().heightMeters() - states[index + 1].elevatorState().heightMeters());
             if (currentDirection == nextDirection) {
-                elevEndVelocity = ELEV_MAX_VEL;
+                elevEndVelocity = constraints.elevMaxVel;
             }
 
             currentDirection = Math.signum(states[index + 1].armState().angleRadians() - states[index].armState().angleRadians());
             nextDirection = Math.signum(states[index + 2].armState().angleRadians() - states[index + 1].armState().angleRadians());
             if (currentDirection == nextDirection) {
-                armEndVelocity = ARM_MAX_VEL;
+                armEndVelocity = constraints.armMaxVel;
             }
         }
 
@@ -100,7 +110,7 @@ public class WindmillTrajectory {
             states[index].elevatorState().heightMeters(),
             states[index + 1].elevatorState().heightMeters(),
             elevStartVelocity, elevEndVelocity,
-            ELEV_MAX_VEL, ELEV_MAX_ACC
+            constraints.elevMaxVel, constraints.elevMaxAccel
         );
 
         MotionProfile arm = new TrapezoidalMotionProfile(
@@ -108,7 +118,7 @@ public class WindmillTrajectory {
             states[index].armState().angleRadians(),
             states[index + 1].armState().angleRadians(),
             armStartVelocity, armEndVelocity,
-            ARM_MAX_VEL, ARM_MAX_ACC
+            constraints.armMaxVel, constraints.armMaxAccel
         );
 
         if (elev.getEndTime() > arm.getEndTime()) {
@@ -151,4 +161,16 @@ public class WindmillTrajectory {
         return Optional.empty();
     }
 
+    public record WindmillConstraints(double armMaxVel, double elevMaxVel, double armMaxAccel, double elevMaxAccel) {
+        public static final WindmillConstraints CORAL_CONSTRAINTS = new WindmillConstraints(
+            WindmillConstants.ARM_MAX_VELOCITY,
+            WindmillConstants.ELEVATOR_MAX_VELOCITY,
+            WindmillConstants.ARM_MAX_ACCELERATION,
+            WindmillConstants.ELEVATOR_MAX_ACCELERATION);
+        public static final WindmillConstraints ALGAE_CONSTRAINTS = new WindmillConstraints(
+            WindmillConstants.ARM_MAX_VELOCITY,
+            WindmillConstants.ELEVATOR_MAX_VELOCITY,
+            WindmillConstants.ARM_MAX_ACCELERATION - WindmillConstants.ARM_ALGAE_ACCELERATION_REDUCTION,
+            WindmillConstants.ELEVATOR_MAX_ACCELERATION);
+    }
 }
