@@ -25,17 +25,14 @@ package org.tahomarobotics.robot;
 import com.ctre.phoenix6.SignalLogger;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Pair;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import org.littletonrobotics.junction.AutoLogOutput;
 import org.tahomarobotics.robot.auto.AutonomousConstants;
 import org.tahomarobotics.robot.auto.commands.DriveToPoseV4Command;
 import org.tahomarobotics.robot.auto.commands.DriveToPoseV5Command;
@@ -93,12 +90,6 @@ public class OI extends SubsystemIF {
     private final CommandXboxController controller = new CommandXboxController(0);
     private final CommandXboxController lessImportantController = new CommandXboxController(1);
 
-    // -- State --
-
-    private final Timer l4Timer = new Timer();
-    @AutoLogOutput(key = "/Autonomous/Moving to L4 on Align?")
-    private boolean moveToL4OnAutoAlign = false;
-
     // -- Initialization --
 
     private OI() {
@@ -151,34 +142,32 @@ public class OI extends SubsystemIF {
         // Right - Auto-align to the closest pole
         controller.rightBumper().whileTrue(
             Commands.deferredProxy(
-                () -> {
-                    // Drive to Pose
-                    AutonomousConstants.Objective pole =
-                        AutonomousConstants.getNearestReefPoleScorePosition(
-                            Chassis.getInstance().getPose().getTranslation()
-                        );
-                    DriveToPoseV4Command dtp = pole.driveToPoseV4Command();
+                        () -> {
+                            // Drive to Pose
+                            AutonomousConstants.Objective pole =
+                                AutonomousConstants.getNearestReefPoleScorePosition(
+                                    Chassis.getInstance().getPose().getTranslation()
+                                ).fudgeY(switch (windmill.getTargetTrajectoryState()) {
+                                    case L4 -> Units.inchesToMeters(Math.PI / 2);
+                                    case L2, L3 -> AutonomousConstants.getAlliance() == DriverStation.Alliance.Red ? Units.inchesToMeters(2) : 0;
+                                    default -> 0;
+                                });
+                            DriveToPoseV4Command dtp = pole.driveToPoseV4Command();
 
-                    Command windmillMovement = !moveToL4OnAutoAlign ?
-                        Commands.none() :
-                        windmill.createTransitionCommand(WindmillConstants.TrajectoryState.L4)
-                                .andThen(Commands.runOnce(led::coral))
-                                .andThen(Commands.runOnce(() -> moveToL4OnAutoAlign = false));
-
-                    return Commands.parallel(
-                        dtp.andThen(Commands.waitSeconds(0.75)).finallyDo(grabber::transitionToDisabled),
-                        dtp.runWhen(() -> dtp.getTargetWaypoint() == 0 && dtp.getDistanceToWaypoint() <= ARM_UP_DISTANCE, windmillMovement),
-                        dtp.runWhen(
-                            () -> dtp.getTargetWaypoint() == 1 && dtp.getDistanceToWaypoint() < AutonomousConstants.AUTO_SCORE_DISTANCE,
-                            grabber.runOnce(grabber::transitionToScoring)
-                        )
-                    );
-                }
-            )
-                .onlyIf(() -> collector.getCollectionMode() == GamePiece.CORAL)
+                            return Commands.parallel(
+                                dtp.andThen(Commands.waitSeconds(0.75)).finallyDo(grabber::transitionToDisabled),
+                                dtp.runWhen(
+                                    () -> dtp.getTargetWaypoint() == 1 && dtp.getDistanceToWaypoint() < AutonomousConstants.AUTO_SCORE_DISTANCE,
+                                    grabber.runOnce(grabber::transitionToScoring)
+                                )
+                            );
+                        }
+                    )
+                    .onlyIf(() -> collector.getCollectionMode() == GamePiece.CORAL)
         );
 
-        controller.rightBumper().onTrue(Commands.deferredProxy(() -> (collector.getCollectionMode() == GamePiece.ALGAE) ? WindmillCommands.createAlgaeThrowCommmand(windmill) : Commands.none()));
+        controller.rightBumper().onTrue(Commands.deferredProxy(
+            () -> (collector.getCollectionMode() == GamePiece.ALGAE) ? WindmillCommands.createAlgaeThrowCommmand(windmill) : Commands.none()));
 
         // -- Joystick Press --
 
@@ -186,26 +175,28 @@ public class OI extends SubsystemIF {
         controller.leftStick().onTrue(collector.runOnce(collector::toggleCollectionMode).andThen(windmill.createSyncCollectionModeCommand()));
 
         // Right - Deployment to algae score
-        controller.rightStick().onTrue(CollectorCommands.createDeploymentAlgaeScoreCommand(collector).onlyIf(() -> collector.getCollectionMode() == GamePiece.ALGAE));
+        controller.rightStick()
+                  .onTrue(CollectorCommands.createDeploymentAlgaeScoreCommand(collector).onlyIf(() -> collector.getCollectionMode() == GamePiece.ALGAE));
         // Right - Stow <-> Collect / Go to previous state if out of tolerance
-        controller.rightStick().onTrue(Commands.defer(
-                                           () -> {
-                                               moveToL4OnAutoAlign = false;
-                                               if (windmill.isAtTargetTrajectoryState()) {
-                                                   if (collector.getCollectionMode().equals(GamePiece.CORAL)) {
-                                                       return windmill.createTransitionToggleCommand(WindmillConstants.TrajectoryState.CORAL_COLLECT, WindmillConstants.TrajectoryState.STOW);
-                                                   } else {
-                                                       if (windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.STOW) {
-                                                           return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.ALGAE_COLLECT);
-                                                       } else {
-                                                           return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.STOW);
-                                                       }
-                                                   }
-                                               } else {
-                                                   return windmill.createResetToPreviousState(true);
-                                               }
-                                           }, Set.of(windmill)
-                                       )
+        controller.rightStick().onTrue(
+            Commands.defer(
+                () -> {
+                    if (windmill.isAtTargetTrajectoryState()) {
+                        if (collector.getCollectionMode().equals(GamePiece.CORAL)) {
+                            return windmill.createTransitionToggleCommand(
+                                WindmillConstants.TrajectoryState.CORAL_COLLECT, WindmillConstants.TrajectoryState.STOW);
+                        } else {
+                            if (windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.STOW) {
+                                return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.ALGAE_COLLECT);
+                            } else {
+                                return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.STOW);
+                            }
+                        }
+                    } else {
+                        return windmill.createResetToPreviousState(true);
+                    }
+                }, Set.of(windmill)
+            )
         );
 
         // -- Triggers --
@@ -229,6 +220,8 @@ public class OI extends SubsystemIF {
         // Right - Eject everything
         Pair<Command, Command> scoreCommands = CollectorCommands.createEjectCommands(collector);
         controller.rightTrigger().onTrue(scoreCommands.getFirst()).onFalse(scoreCommands.getSecond());
+        // If we are in L1, lower the deadzone to 0.05 instead of 0.5
+//        controller.rightTrigger(0.05).onTrue(scoreCommands.getFirst().onlyIf(grabber::isScoringL1)).onFalse(scoreCommands.getSecond().onlyIf(grabber::isScoringL1));
 
         Pair<Command, Command> indexerScoringCommands = IndexerCommands.createIndexerEjectingCommands(indexer);
         controller.rightTrigger().onTrue(indexerScoringCommands.getFirst())
@@ -247,57 +240,38 @@ public class OI extends SubsystemIF {
 
         // A - L2 / Low Algae De-score
         controller.a().onTrue(Commands.defer(
-            () -> {
-                moveToL4OnAutoAlign = false;
-                return windmill.createTransitionCommand(
-                    collector.getCollectionMode() == GamePiece.CORAL ?
-                        WindmillConstants.TrajectoryState.L2 :
-                        WindmillConstants.TrajectoryState.LOW_DESCORE
-                );
-            }, Set.of(windmill)
+            () -> windmill.createTransitionCommand(
+                collector.getCollectionMode() == GamePiece.CORAL ?
+                    WindmillConstants.TrajectoryState.L2 :
+                    WindmillConstants.TrajectoryState.LOW_DESCORE
+            ), Set.of(windmill)
         ));
 
         // B - L3 / High Algae De-score
         controller.b().onTrue(Commands.defer(
-            () -> {
-                moveToL4OnAutoAlign = false;
-                return windmill.createTransitionCommand(
-                    collector.getCollectionMode() == GamePiece.CORAL ?
-                        WindmillConstants.TrajectoryState.L3 :
-                        WindmillConstants.TrajectoryState.HIGH_DESCORE
-                );
-            }, Set.of(windmill)
+            () -> windmill.createTransitionCommand(
+                collector.getCollectionMode() == GamePiece.CORAL ?
+                    WindmillConstants.TrajectoryState.L3 :
+                    WindmillConstants.TrajectoryState.HIGH_DESCORE
+            ), Set.of(windmill)
         ));
 
         // X - L1
         controller.x().onTrue(windmill.createTransitionToggleCommand(WindmillConstants.TrajectoryState.CORAL_COLLECT, WindmillConstants.TrajectoryState.L1));
 
         // Y - L4
-        controller.y().onTrue(windmill.createTransitionCommand(WindmillConstants.TrajectoryState.STOW)
-              .onlyIf(() -> windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.CORAL_COLLECT)
-              .andThen(Commands.deferredProxy(() -> {
-                  if (collector.getCollectionMode().equals(GamePiece.CORAL)) {
-                      if (!l4Timer.isRunning() || l4Timer.hasElapsed(DOUBLE_PRESS_TIMEOUT)) {
-                          // We are already at the target state, so return to collect.
-                          if (windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.L4) {
-                              return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.CORAL_COLLECT);
-                          } else {
-                              return Commands.runOnce(() -> {
-                                  l4Timer.restart(); // Reset the double press timer
-                                  toggleL4OnAutoAlign();
-                              });
-                          }
-                      } else {
-                          return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.L4).andThen(Commands.runOnce(this::toggleL4OnAutoAlign));
-                      }
-                  } else {
-                      if (windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.ALGAE_PRESCORE) {
-                          return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.STOW);
-                      }
-                      return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.ALGAE_PRESCORE);
-                  }
-              }
-        )));
+        controller.y().onTrue(Commands.deferredProxy(
+            () -> {
+                if (collector.getCollectionMode().equals(GamePiece.CORAL)) {
+                    return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.L4);
+                } else {
+                    if (windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.ALGAE_PRESCORE) {
+                        return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.STOW);
+                    }
+                    return windmill.createTransitionCommand(WindmillConstants.TrajectoryState.ALGAE_PRESCORE);
+                }
+            }
+        ));
     }
 
     public void configureLessImportantControllerBindings() {
@@ -330,22 +304,14 @@ public class OI extends SubsystemIF {
 
     // -- Helper Methods --
 
-    public void toggleL4OnAutoAlign() {
-        if (moveToL4OnAutoAlign) {
-            led.l4();
-        } else {
-            led.sync();
-        }
-
-        moveToL4OnAutoAlign = !moveToL4OnAutoAlign;
-    }
-
     @SuppressWarnings("SuspiciousNameCombination")
     public void setDefaultCommands() {
         chassis.setDefaultCommand(ChassisCommands.createTeleOpDriveCommand(
             chassis,
             this::getLeftY, this::getLeftX, this::getRightX
         ));
+
+        grabber.setVelocitySupplier(controller::getRightTriggerAxis);
     }
 
     // -- Inputs --

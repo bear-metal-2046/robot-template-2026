@@ -30,7 +30,6 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import org.tahomarobotics.robot.auto.AutonomousConstants;
 import org.tahomarobotics.robot.chassis.Chassis;
 import org.tahomarobotics.robot.vision.Vision;
 import org.tinylog.Logger;
@@ -51,6 +50,8 @@ public class DriveToPoseV5Command extends Command {
     private final ProfiledPIDController x, y, r;
 
     // -- State --
+
+    private Pose2d startPose;
 
     private final int isolationTarget;
     private Translation2d targetTranslation;
@@ -92,16 +93,18 @@ public class DriveToPoseV5Command extends Command {
     @Override
     public void initialize() {
         Pose2d currentPose = chassis.getPose();
-        ChassisSpeeds currentVelocity = chassis.getChassisSpeeds();
+        ChassisSpeeds currentVelocity = chassis.getFieldChassisSpeeds();
 
         Logger.info("Driving to supplied position going through {}", currentPose);
 
-        x.reset(currentPose.getX(), currentVelocity.vxMetersPerSecond);
-        y.reset(currentPose.getY(), currentVelocity.vyMetersPerSecond);
+        x.reset(currentPose.getX(), 0);
+        y.reset(currentPose.getY(), 0);
         r.reset(currentPose.getRotation().getRadians(), currentVelocity.omegaRadiansPerSecond);
 
         chassis.setAutoAligning(true);
         Vision.getInstance().isolate(isolationTarget);
+
+        startPose = currentPose;
     }
 
     @Override
@@ -159,6 +162,10 @@ public class DriveToPoseV5Command extends Command {
     }
 
     // -- Instance Methods --
+
+    public double getDistanceFromStart() {
+        return startPose.getTranslation().getDistance(chassis.getPose().getTranslation());
+    }
 
     public double getDistanceToWaypoint() {
         return targetTranslation.getDistance(chassis.getPose().getTranslation());

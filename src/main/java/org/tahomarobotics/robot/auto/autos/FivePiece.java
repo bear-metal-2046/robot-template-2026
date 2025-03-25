@@ -50,6 +50,8 @@ public class FivePiece extends SequentialCommandGroup {
 
     private static final double SCORING_DISTANCE = Units.inchesToMeters(3);
     private static final double ARM_UP_DISTANCE = AutonomousConstants.APPROACH_DISTANCE_BLEND_FACTOR + Units.inchesToMeters(6);
+    private static final double ARM_DOWN_DISTANCE = Units.inchesToMeters(24);
+
     private static final double SCORING_TIME = 0.25;
 
     // -- Requirements --
@@ -78,10 +80,10 @@ public class FivePiece extends SequentialCommandGroup {
             driveToFirstPoleThenScore(isLeft ? 'J' : 'E', () -> alliance == DriverStation.Alliance.Red && isLeft ? Units.inchesToMeters(1) : 0),
             driveToCoralAndCollect(isLeft),
             // Drive to the second scoring position then score
-            driveToPoleThenScoreWhileCollecting(isLeft ? 'K' : 'D'),
+            driveToPoleThenScoreWhileCollecting(isLeft ? 'K' : 'D', () -> alliance == DriverStation.Alliance.Blue && !isLeft ? Units.inchesToMeters(2) : 0),
             driveToCoralAndCollect(isLeft),
             // Drive to the third scoring position then score
-            driveToPoleThenScoreWhileCollecting(isLeft ? 'L' : 'C'),
+            driveToPoleThenScoreWhileCollecting(isLeft ? 'L' : 'C', () -> alliance == DriverStation.Alliance.Blue && !isLeft ? Units.inchesToMeters(2) : 0),
             driveToCoralAndCollect(isLeft),
             // Drive to the fourth scoring position then score
             driveToPoleThenScoreWhileCollecting(isLeft ? 'A' : 'B'),
@@ -165,21 +167,27 @@ public class FivePiece extends SequentialCommandGroup {
 
     private Command driveToCoralStationAndCollect(boolean isLeft) {
         Timer timer = new Timer();
-        return Commands.parallel(
-            Commands.runOnce(timer::restart),
-            // Drive to the coral station using the current translation of the chassis
-            Commands.defer(
-                () -> AutonomousConstants.getObjectiveForCoralStation(isLeft, Chassis.getInstance().getPose().getTranslation(), alliance)
-                                         .driveToPoseV4Command(),
-                Set.of(chassis)
-            ),
-            Commands.waitSeconds(0.5)
-                    .andThen(WindmillMoveCommand.fromTo(L4, CORAL_COLLECT).orElseThrow())
-                    .andThen(grabber.runOnce(grabber::transitionToCoralCollecting)),
-            // Collect from the collector and indexer
-            collector.runOnce(collector::deploymentTransitionToCollect).andThen(collector.runOnce(collector::collectorTransitionToCollecting)),
-            indexer.runOnce(indexer::transitionToCollecting)
-        ).andThen(Commands.runOnce(() -> Logger.info("Driving to coral station took {} seconds.", timer.get())));
+        return Commands.defer(
+            () -> {
+                var dtp = AutonomousConstants.getObjectiveForCoralStation(isLeft, Chassis.getInstance().getPose().getTranslation(), alliance)
+                                             .driveToPoseV4Command();
+
+                return Commands.parallel(
+                    Commands.runOnce(timer::restart),
+                    // Drive to the coral station using the current translation of the chassis
+                    dtp,
+                    dtp.runWhen(
+                           () -> dtp.getDistanceFromStart() > ARM_DOWN_DISTANCE,
+                           WindmillMoveCommand.fromTo(L4, CORAL_COLLECT).orElseThrow()
+                       )
+                       .andThen(grabber.runOnce(grabber::transitionToCoralCollecting)),
+                    // Collect from the collector and indexer
+                    collector.runOnce(collector::deploymentTransitionToCollect).andThen(collector.runOnce(collector::collectorTransitionToCollecting)),
+                    indexer.runOnce(indexer::transitionToCollecting)
+                ).andThen(Commands.runOnce(() -> Logger.info("Driving to coral station took {} seconds.", timer.get())));
+            },
+            Set.of(chassis, windmill, grabber, collector, indexer)
+        );
     }
 
     public Command driveToCoralAndCollect(boolean isLeft) {
@@ -188,19 +196,26 @@ public class FivePiece extends SequentialCommandGroup {
         }
 
         Timer timer = new Timer();
-        return Commands.parallel(
-            Commands.runOnce(timer::restart),
-            Commands.defer(
-                () -> AutonomousConstants.getObjectiveForCoralStation(isLeft, Chassis.getInstance().getPose().getTranslation(), alliance)
-                    .driveToPoseV5Command().withTimeout(5),
-                Set.of(chassis)
-            ).until(indexer::isBeanBakeTripped),
-            Commands.waitSeconds(0.6)
-                .andThen(WindmillMoveCommand.fromTo(L4, CORAL_COLLECT).orElseThrow())
-                .andThen(grabber.runOnce(grabber::transitionToCoralCollecting)),
-            // Collect from collector and indexer
-            collector.runOnce(collector::deploymentTransitionToCollect).andThen(collector.runOnce(collector::collectorTransitionToCollecting)),
-            indexer.runOnce(indexer::transitionToCollecting)
-        ).andThen(Commands.runOnce(() -> Logger.info("Driving to coral took {} seconds.", timer.get())));
+        return Commands.defer(
+            () -> {
+                var dtp = AutonomousConstants.getObjectiveForCoralStation(isLeft, Chassis.getInstance().getPose().getTranslation(), alliance)
+                                             .driveToPoseV5Command();
+
+                return Commands.parallel(
+                    Commands.runOnce(timer::restart),
+                    // Drive to the coral station using the current translation of the chassis
+                    dtp.withTimeout(5).until(indexer::isBeanBakeTripped),
+                    dtp.runWhen(
+                           () -> dtp.getDistanceFromStart() > ARM_DOWN_DISTANCE,
+                           WindmillMoveCommand.fromTo(L4, CORAL_COLLECT).orElseThrow()
+                       )
+                       .andThen(grabber.runOnce(grabber::transitionToCoralCollecting)),
+                    // Collect from the collector and indexer
+                    collector.runOnce(collector::deploymentTransitionToCollect).andThen(collector.runOnce(collector::collectorTransitionToCollecting)),
+                    indexer.runOnce(indexer::transitionToCollecting)
+                ).andThen(Commands.runOnce(() -> Logger.info("Driving to coral took {} seconds.", timer.get())));
+            },
+            Set.of(chassis, windmill, grabber, collector, indexer)
+        );
     }
 }

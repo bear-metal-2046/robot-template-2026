@@ -129,10 +129,8 @@ public class Climber extends SubsystemIF {
         new Trigger(() -> RobotState.isEnabled() && !RobotState.isTest())
             .onTrue(
                 runOnce(this::zeroPosition)
-                    .andThen(
-                        ClimberCommands
-                            .getClimberCommand().onlyIf(RobotState::isTeleop)
-                    ).onlyIf(() -> climbState.equals(ClimberState.ZEROED))
+                    .andThen(ClimberCommands.getClimberCommand())
+                    .onlyIf(() -> climbState.equals(ClimberState.ZEROED))
             );
 
         // Climb on limit switch
@@ -182,7 +180,7 @@ public class Climber extends SubsystemIF {
         targetPosition = ClimberConstants.DEPLOY_POSITION;
 
         Logger.info("Climber going to DEPLOY");
-        climberMotor.setControl(positionControl.withPosition(targetPosition).withSlot(0));
+//        climberMotor.setControl(positionControl.withPosition(targetPosition).withSlot(0));
 
         climbState = ClimberState.DEPLOYED;
     }

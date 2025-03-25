@@ -51,6 +51,8 @@ public class DriveToPoseV4Command extends Command {
 
     // -- State --
 
+    private Pose2d startPose;
+
     private final int isolationTarget;
     private final double blendingDistance;
 
@@ -104,6 +106,8 @@ public class DriveToPoseV4Command extends Command {
         Vision.getInstance().isolate(isolationTarget);
 
         org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/Waypoints", waypoints.toArray(Pose2d[]::new));
+
+        startPose = currentPose;
     }
 
     @Override
@@ -155,6 +159,10 @@ public class DriveToPoseV4Command extends Command {
     }
 
     // -- Instance Methods --
+
+    public double getDistanceFromStart() {
+        return startPose.getTranslation().getDistance(chassis.getPose().getTranslation());
+    }
 
     public double getDistanceToWaypoint() {
         return waypoints.get(targetWaypoint).getTranslation().getDistance(chassis.getPose().getTranslation());

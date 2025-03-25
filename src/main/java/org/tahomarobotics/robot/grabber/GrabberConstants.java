@@ -26,15 +26,16 @@ import com.ctre.phoenix6.configs.*;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import org.tahomarobotics.robot.util.identity.Identity;
+import org.tahomarobotics.robot.windmill.WindmillConstants;
 
 public class GrabberConstants {
     public static final double CORAL_COLLECT_VELOCITY = -20;
     public static final double ALGAE_COLLECT_VELOCITY = -10;
     public static final double SCORING_VELOCITY = 50;
-    public static final double CORAL_HOLD_VOLTAGE = 0;
+    public static final double CORAL_HOLD_VOLTAGE = WindmillConstants.AEE_FEATURE ? 0 : -0.25;
     public static final double ALGAE_HOLD_VOLTAGE = -1.35;
 
-    public static final double CORAL_COLLECTION_DELAY = 0.25;
+    public static final double CORAL_COLLECTION_DELAY = 0.05;
     public static final double ALGAE_COLLECTION_DELAY = 0.1;
 
     public static final double GEAR_REDUCTION;
@@ -66,20 +67,22 @@ public class GrabberConstants {
     // -- States --
 
     public enum GrabberState {
-        DISABLED(MotionType.NONE, 0),
-        CORAL_HOLDING(MotionType.VOLTAGE, CORAL_HOLD_VOLTAGE),
-        CORAL_COLLECTING(MotionType.VELOCITY, CORAL_COLLECT_VELOCITY),
-        ALGAE_HOLDING(MotionType.VOLTAGE, ALGAE_HOLD_VOLTAGE),
-        ALGAE_COLLECTING(MotionType.VELOCITY, ALGAE_COLLECT_VELOCITY),
-        SCORING(MotionType.VELOCITY, SCORING_VELOCITY),
-        L1_SCORING(MotionType.VELOCITY, -SCORING_VELOCITY);
+        DISABLED(MotionType.NONE, 0, false),
+        CORAL_HOLDING(MotionType.VOLTAGE, CORAL_HOLD_VOLTAGE, false),
+        CORAL_COLLECTING(MotionType.VELOCITY, CORAL_COLLECT_VELOCITY, false),
+        ALGAE_HOLDING(MotionType.VOLTAGE, ALGAE_HOLD_VOLTAGE, false),
+        ALGAE_COLLECTING(MotionType.VELOCITY, ALGAE_COLLECT_VELOCITY, false),
+        SCORING(MotionType.VELOCITY, SCORING_VELOCITY, false),
+        L1_SCORING(MotionType.VELOCITY, -SCORING_VELOCITY, true);
 
         public final MotionType type;
         public final double value;
+        public final boolean usingSupplier;
 
-        GrabberState(MotionType type, double value) {
+        GrabberState(MotionType type, double value, boolean usingSupplier) {
             this.type = type;
             this.value = value;
+            this.usingSupplier = usingSupplier;
         }
 
         public enum MotionType {

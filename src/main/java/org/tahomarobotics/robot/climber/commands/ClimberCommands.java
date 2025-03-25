@@ -36,15 +36,15 @@ public class ClimberCommands {
         return Commands.deferredProxy(
             () ->
                 switch (climber.getClimbState()) {
-                    case STOWED -> Commands.runOnce(climber::disengageSolenoid)
-                                           .andThen(Commands.runOnce(climber::wiggle))
-                                           .andThen(Commands.waitUntil(climber::isAtTargetPosition))
-                                           .andThen(Commands.runOnce(climber::deploy))
-                                           .andThen(Commands.runOnce(() -> Windmill.getInstance().setArmPosition(2 * Math.PI / 3)))
+                    case STOWED -> //Commands.runOnce(climber::disengageSolenoid)
+//                                           .andThen(Commands.runOnce(climber::wiggle))
+//                                           .andThen(Commands.waitUntil(climber::isAtTargetPosition))
+                                           Commands.runOnce(climber::deploy)
+                                               .andThen(Commands.runOnce(() -> Windmill.getInstance().setArmPosition(2 * Math.PI / 3)))
                                            .andThen(Commands.waitUntil(Windmill.getInstance()::isArmAtPosition))
-                                           .andThen(Commands.runOnce(() -> Windmill.getInstance().setElevatorHeight(0.005)))
-                                           .andThen(Commands.waitUntil(climber::isAtTargetPosition))
-                                           .andThen(Commands.runOnce(climber::engageSolenoid));
+                                           .andThen(Commands.runOnce(() -> Windmill.getInstance().setElevatorHeight(0.005)));
+//                                           .andThen(Commands.waitUntil(climber::isAtTargetPosition))
+//                                           .andThen(Commands.runOnce(climber::engageSolenoid));
                     case DEPLOYED -> Commands.runOnce(climber::climb)
                                              .andThen(Commands.runOnce(() -> LED.getInstance().climb()))
                                              .andThen(Commands.runOnce(() -> Windmill.getInstance().setArmPosition(Math.PI)))

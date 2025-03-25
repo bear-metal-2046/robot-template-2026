@@ -32,15 +32,15 @@ public class ClimberConstants {
     public static final double MOTOR_TO_CLIMBER_GEAR_RATIO = (8.0 / 72.0) * (18.0 / 72.0) * (16.0 / 48.0);
 
     public static final double ZERO_POSITION = 0.0;
-    public static final double STOW_POSITION = 0.190673828125;
-    public static final double DEPLOY_POSITION = 0.190673828125;
-    public static final double CLIMB_POSITION = -0.12;
+    public static final double STOW_POSITION = 0.22900390625;
+    public static final double DEPLOY_POSITION = 0.22900390625;
+    public static final double CLIMB_POSITION = -0.11;
 
     public static final double CLIMB_POSITION_TOLERANCE = 0.005;
 
     public static final double RATCHET_SOLENOID_DEPLOY_PERCENTAGE = 1;
 
-    private static final double CLIMBER_MAX_VELOCITY = 0.125;
+    private static final double CLIMBER_MAX_VELOCITY = 0.28125;
     private static final double CLIMBER_MAX_ACCELERATION = CLIMBER_MAX_VELOCITY * 4;
     private static final double CLIMBER_MAX_JERK = CLIMBER_MAX_ACCELERATION * 4;
 

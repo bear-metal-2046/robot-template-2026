@@ -31,7 +31,7 @@ import org.tahomarobotics.robot.util.identity.Identity;
 
 public class WindmillConstants {
 
-    private static final boolean AEE_FEATURE = true;
+    public static final boolean AEE_FEATURE = false;
 
     // -- Elevator --
 

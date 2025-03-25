@@ -244,6 +244,11 @@ public class Chassis extends SubsystemIF {
         return kinematics.toChassisSpeeds(getSwerveModuleStates());
     }
 
+    @AutoLogOutput(key = "Chassis/Field Chassis Speeds")
+    public ChassisSpeeds getFieldChassisSpeeds() {
+        return ChassisSpeeds.fromRobotRelativeSpeeds(kinematics.toChassisSpeeds(getSwerveModuleStates()), getHeading());
+    }
+
     @AutoLogOutput(key = "Chassis/Yaw")
     public ValidYaw getYaw() {
         boolean valid = BaseStatusSignal.refreshAll(yaw, yawVelocity).equals(StatusCode.OK);
