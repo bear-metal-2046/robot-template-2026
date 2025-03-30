@@ -34,9 +34,12 @@ import java.util.Set;
 
 public class GrabberCommands {
     public static Pair<Command, Command> createGrabberCommands(Grabber grabber) {
-        Command onTrue = Commands.defer(() ->
-                                            (Collector.getInstance().getCollectionMode().equals(GamePiece.CORAL)) ? Commands.runOnce(grabber::transitionToCoralCollecting) : Commands.runOnce(grabber::transitionToAlgaeCollecting),
-                                        Set.of(grabber));
+        Command onTrue = Commands.defer(() -> (Windmill.getInstance().getTargetTrajectoryState() == WindmillConstants.TrajectoryState.L1) ?
+            Commands.runOnce(grabber::transitionToScoringL1) :
+            (Collector.getInstance().getCollectionMode().equals(GamePiece.CORAL)) ? Commands.runOnce(grabber::transitionToCoralCollecting) : Commands.runOnce(grabber::transitionToAlgaeCollecting),
+            Set.of(grabber)).onlyIf(() -> Windmill.getInstance().getTargetTrajectoryState() == WindmillConstants.TrajectoryState.L1
+                                          || Windmill.getInstance().getTargetTrajectoryState() == WindmillConstants.TrajectoryState.CORAL_COLLECT
+                                          || Windmill.getInstance().getTargetTrajectoryState() == WindmillConstants.TrajectoryState.ALGAE_COLLECT);
         Command onFalse = grabber.runOnce(grabber::transitionToDisabled).onlyIf(() -> !grabber.isHoldingAlgae() && !grabber.algaeCollectionTimer.isRunning());
 
         return Pair.of(onTrue, onFalse);

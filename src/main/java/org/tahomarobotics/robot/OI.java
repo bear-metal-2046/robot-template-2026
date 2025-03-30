@@ -230,7 +230,7 @@ public class OI extends SubsystemIF {
         controller.leftTrigger().onTrue(indexerCommands.getFirst()).onFalse(indexerCommands.getSecond());
 
         Pair<Command, Command> grabberCommands = GrabberCommands.createGrabberCommands(grabber);
-        controller.leftTrigger().onTrue(grabberCommands.getFirst()).onFalse(grabberCommands.getSecond());
+        controller.leftTrigger(TRIGGER_DEADBAND).onTrue(grabberCommands.getFirst()).onFalse(grabberCommands.getSecond());
 
         //// Climber Rollers
         if (RobotConfiguration.isClimberEnabled()) {
@@ -242,8 +242,6 @@ public class OI extends SubsystemIF {
         // Right - Eject everything
         Pair<Command, Command> scoreCommands = CollectorCommands.createEjectCommands(collector);
         controller.rightTrigger().onTrue(scoreCommands.getFirst()).onFalse(scoreCommands.getSecond());
-        // If we are in L1, lower the deadzone to 0.05 instead of 0.5
-//        controller.rightTrigger(0.05).onTrue(scoreCommands.getFirst().onlyIf(grabber::isScoringL1)).onFalse(scoreCommands.getSecond().onlyIf(grabber::isScoringL1));
 
         Pair<Command, Command> indexerScoringCommands = IndexerCommands.createIndexerEjectingCommands(indexer);
         controller.rightTrigger().onTrue(indexerScoringCommands.getFirst())
@@ -343,7 +341,7 @@ public class OI extends SubsystemIF {
             this::getLeftY, this::getLeftX, this::getRightX
         ));
 
-        grabber.setVelocitySupplier(controller::getRightTriggerAxis);
+        grabber.setVelocitySupplier(() -> controller.getRightTriggerAxis() - controller.getLeftTriggerAxis());
     }
 
     // -- Inputs --
