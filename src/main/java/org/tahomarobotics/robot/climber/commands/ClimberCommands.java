@@ -23,11 +23,14 @@
 package org.tahomarobotics.robot.climber.commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import org.tahomarobotics.robot.climber.Climber;
 import org.tahomarobotics.robot.lights.LED;
 import org.tahomarobotics.robot.windmill.Windmill;
 import org.tinylog.Logger;
+
+import java.util.Optional;
 
 public class ClimberCommands {
     private static final Climber climber = Climber.getInstance();
@@ -40,6 +43,7 @@ public class ClimberCommands {
 //                                           .andThen(Commands.runOnce(climber::wiggle))
 //                                           .andThen(Commands.waitUntil(climber::isAtTargetPosition))
                                            Commands.runOnce(climber::deploy)
+                                               .andThen(() -> Optional.ofNullable(CommandScheduler.getInstance().requiring(Windmill.getInstance())).ifPresent(Command::cancel))
                                                .andThen(Commands.runOnce(() -> Windmill.getInstance().setArmPosition(2 * Math.PI / 3)))
                                            .andThen(Commands.waitUntil(Windmill.getInstance()::isArmAtPosition))
                                            .andThen(Commands.runOnce(() -> Windmill.getInstance().setElevatorHeight(0.005)));

@@ -32,7 +32,6 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.numbers.N8;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
@@ -52,6 +51,8 @@ import org.tahomarobotics.robot.util.persistent.CalibrationData;
 import org.tinylog.Logger;
 import org.tinylog.TaggedLogger;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -132,8 +133,7 @@ public class AprilTagCamera implements AutoCloseable {
     @AutoLogOutput(key = "Vision/{name}/AprilTag IDs")
     private int[] aprilTagIDs = new int[0];
 
-    @AutoLogOutput(key = "Vision/{name}/Isolated Tag")
-    private int isolationTarget = -1;
+    private HashSet<Integer> isolationTargets = new HashSet<>();
 
     @AutoLogOutput(key = "Vision/{name}/Failed Updates")
     private int failedUpdates = 0;
@@ -226,14 +226,6 @@ public class AprilTagCamera implements AutoCloseable {
         double timestamp = result.getTimestampSeconds();
         double now = Timer.getFPGATimestamp();
 
-        // Publish AprilTag Positions
-        chassisPose.ifPresent(pose -> {
-            aprilTags = result.getTargets().stream()
-                              .map(target -> pose.plus(configuration.transform()).plus(target.getBestCameraToTarget()))
-                              .toArray(Pose3d[]::new);
-            aprilTagIDs = result.getTargets().stream().mapToInt(PhotonTrackedTarget::getFiducialId).toArray();
-        });
-
         // Pre-filtering
 
         List<PhotonTrackedTarget> targets = (result.getTargets().stream())
@@ -245,22 +237,21 @@ public class AprilTagCamera implements AutoCloseable {
             return Optional.empty();
         }
 
-        if (isolationTarget > 0) {
+        if (!isolationTargets.isEmpty()) {
             isolationPoseEstimator.addHeadingData(
                 result.getTimestampSeconds(), chassisPose.map(p -> p.getRotation().toRotation2d()).orElseGet(Chassis.getInstance()::getHeading));
 
-            Optional<PhotonTrackedTarget> target_ = targets.stream().filter(t -> t.fiducialId == isolationTarget).findAny();
-            if (target_.isEmpty()) { return Optional.empty(); }
-            PhotonTrackedTarget target = target_.get();
+            List<PhotonTrackedTarget> targets_ = targets.stream().filter(t -> isolationTargets.contains(t.fiducialId)).toList();
 
-            var est = isolationPoseEstimator.update(new PhotonPipelineResult(result.metadata, List.of(target), Optional.empty()));
+            var est = isolationPoseEstimator.update(new PhotonPipelineResult(result.metadata, targets_, Optional.empty()));
             Optional<EstimatedRobotPose> estimatedRobotPose = est.map(e -> new EstimatedRobotPose(
                 name, result.getTimestampSeconds(),
                 EstimatedRobotPose.Type.ISOLATED_SINGLE_TAG,
                 e.estimatedPose.toPose2d(),
                 BASE_ISOLATED_SINGLE_TAG_STD_DEV,
-                List.of(target)
+                targets_
             ));
+            publishTags(chassisPose, targets_);
 
             if (estimatedRobotPose.isPresent()) {
                 singleTagPose = estimatedRobotPose.get().pose();
@@ -270,6 +261,8 @@ public class AprilTagCamera implements AutoCloseable {
             }
             return estimatedRobotPose;
         }
+
+        publishTags(chassisPose, targets);
 
         // CasADi pose estimation
         // TODO: Implement once Constrained SolvePNP is released officially.
@@ -416,6 +409,15 @@ public class AprilTagCamera implements AutoCloseable {
 
     // Helper Methods
 
+    public void publishTags(Optional<Pose3d> chassisPose, List<PhotonTrackedTarget> targets) {
+        chassisPose.ifPresent(pose -> {
+            aprilTags = targets.stream()
+                                .map(target -> pose.plus(configuration.transform()).plus(target.getBestCameraToTarget()))
+                                .toArray(Pose3d[]::new);
+            aprilTagIDs = targets.stream().mapToInt(PhotonTrackedTarget::getFiducialId).toArray();
+        });
+    }
+
     /**
      * Checks if the pose is within field bounds.
      *
@@ -445,12 +447,13 @@ public class AprilTagCamera implements AutoCloseable {
 
     // Setters
 
-    void isolate(int tag) {
-        isolationTarget = tag;
+    void isolate(Integer... tags) {
+        isolationTargets.clear();
+        isolationTargets.addAll(Arrays.stream(tags).filter(i -> i > 0).toList());
     }
 
     void globalize() {
-        isolationTarget = -1;
+        isolationTargets.clear();
     }
 
     // Configuration

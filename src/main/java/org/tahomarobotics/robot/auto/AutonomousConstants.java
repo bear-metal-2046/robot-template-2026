@@ -31,6 +31,7 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import org.tahomarobotics.robot.auto.commands.DriveToPoseV4Command;
 import org.tahomarobotics.robot.auto.commands.DriveToPoseV5Command;
+import org.tahomarobotics.robot.auto.commands.FasterDriveToPoseV4Command;
 import org.tahomarobotics.robot.chassis.ChassisConstants;
 import org.tahomarobotics.robot.vision.Vision;
 import org.tahomarobotics.robot.vision.VisionConstants;
@@ -46,7 +47,7 @@ public class AutonomousConstants {
     /** A horizontal shift on the robot's position relative to reef poles. */
     public static final double DEFAULT_REEF_HORIZONTAL_ALIGNMENT_FUDGE = Units.inchesToMeters(0);
     public static final double DEFAULT_REEF_CENTER_FUDGE = Units.inchesToMeters(0);
-    public static final double FUDGE_INCREMENT = 0.25; // Inches
+    public static final double FUDGE_INCREMENT = Units.inchesToMeters(0.25); // Inches
 
     // Spike marks to avoid in coral detection
     public static final double SPIKE_MARK_X_DISTANCE = 1.8;
@@ -54,7 +55,9 @@ public class AutonomousConstants {
     public static final double MAX_JUMP_DISTANCE = 0.35;
 
     // Translational Constraints in Meters
-    public static final TrapezoidProfile.Constraints TRANSLATION_ALIGNMENT_CONSTRAINTS = new TrapezoidProfile.Constraints(4, 5);
+    public static final TrapezoidProfile.Constraints AUTO_TRANSLATION_ALIGNMENT_CONSTRAINTS = new TrapezoidProfile.Constraints(3.25, 4.375);
+    public static final TrapezoidProfile.Constraints FASTER_AUTO_TRANSLATION_ALIGNMENT_CONSTRAINTS = new TrapezoidProfile.Constraints(4, 5);
+    public static final TrapezoidProfile.Constraints TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS = new TrapezoidProfile.Constraints(3.25, 4.375);
     // TODO: OSCILLATIONS
     public static final double TRANSLATION_ALIGNMENT_KP = 5, TRANSLATION_ALIGNMENT_KI = 0, TRANSLATION_ALIGNMENT_KD = 0.25;
     public static final double X_TOLERANCE = Units.inchesToMeters(1.25);
@@ -72,7 +75,7 @@ public class AutonomousConstants {
     /** Perpendicular distance from the center of the reef to the center of the chassis once aligned. */
     private static final double SCORE_DISTANCE_FROM_CENTER = Units.inchesToMeters(32.75) + ChassisConstants.BUMPER_WIDTH / 2 + Units.inchesToMeters(0.75);
     private static final double APPROACH_DISTANCE_FROM_CENTER = SCORE_DISTANCE_FROM_CENTER + Units.inchesToMeters(18);
-    private static final double ALGAE_SCORE_DISTANCE_FROM_CENTER = 1.2;
+    private static final double ALGAE_SCORE_DISTANCE_FROM_CENTER = Units.inchesToMeters(32);
     public static final double APPROACH_DISTANCE_BLEND_FACTOR = Units.inchesToMeters(12);
     public static final double AUTO_SCORE_DISTANCE = Units.inchesToMeters(2);
     public static final double AUTO_ALGAE_SCORE_DISTANCE = Units.inchesToMeters(2);
@@ -100,10 +103,12 @@ public class AutonomousConstants {
     private static List<Translation2d> BLUE_REEF_APPROACH_POLES, BLUE_REEF_SCORE_POLES;
     public static List<Translation2d> RED_REEF_CENTER_POSITIONS, BLUE_REEF_CENTER_POSITIONS;
 
+    public static Integer[] RED_REEF_APRILTAGS = new Integer[]{ 6, 7, 8, 9, 10, 11 }, BLUE_REEF_APRILTAGS = new Integer[]{ 17, 18, 19, 20, 21, 22 };
+
     static {
         computeCoralStationWaypoints();
-        computePolePositions(DEFAULT_REEF_HORIZONTAL_ALIGNMENT_FUDGE);
-        computeReefCenterPositions(DEFAULT_REEF_CENTER_FUDGE);
+        computePolePositions();
+        computeReefCenterPositions();
     }
 
     public static void computeCoralStationWaypoints() {
@@ -117,18 +122,18 @@ public class AutonomousConstants {
         RED_CORAL_STATION_RIGHT_TARGET = RED_ORIGIN.minus(BLUE_CORAL_STATION_RIGHT_TARGET);
     }
 
-    public static void computePolePositions(double fudge) {
+    public static void computePolePositions() {
         List<Translation2d> APPROACH_REEF_POLES =
             (IntStream.range(0, 12))
                 .mapToObj(i -> new Translation2d(
-                    APPROACH_DISTANCE_FROM_CENTER, (i % 2 == 0 ? -DISTANCE_BETWEEN_REEF_POLES : DISTANCE_BETWEEN_REEF_POLES) / 2 - fudge
+                    APPROACH_DISTANCE_FROM_CENTER, (i % 2 == 0 ? -DISTANCE_BETWEEN_REEF_POLES : DISTANCE_BETWEEN_REEF_POLES) / 2
                 ).rotateBy(Rotation2d.fromDegrees(60).times(Math.floor((double) i / 2))))
                 .toList();
 
         List<Translation2d> SCORE_REEF_POLES =
             (IntStream.range(0, 12))
                 .mapToObj(i -> new Translation2d(
-                    SCORE_DISTANCE_FROM_CENTER, (i % 2 == 0 ? -DISTANCE_BETWEEN_REEF_POLES : DISTANCE_BETWEEN_REEF_POLES) / 2 - fudge
+                    SCORE_DISTANCE_FROM_CENTER, (i % 2 == 0 ? -DISTANCE_BETWEEN_REEF_POLES : DISTANCE_BETWEEN_REEF_POLES) / 2
                 ).rotateBy(Rotation2d.fromDegrees(60).times(Math.floor((double) i / 2))))
                 .toList();
 
@@ -141,11 +146,11 @@ public class AutonomousConstants {
         Collections.rotate(BLUE_REEF_SCORE_POLES, 6);
     }
 
-    public static void computeReefCenterPositions(double fudge) {
+    public static void computeReefCenterPositions() {
         List<Translation2d> CENTER_POSITIONS =
             (IntStream.range(0, 6))
                 .mapToObj(i -> new Translation2d(
-                    SCORE_DISTANCE_FROM_CENTER, 0 - fudge
+                    SCORE_DISTANCE_FROM_CENTER, 0
                 ).rotateBy(Rotation2d.fromDegrees(60).times(i + 3)))
                 .toList();
 
@@ -272,6 +277,14 @@ public class AutonomousConstants {
     public record Objective(int tag, Pose2d approachPose, Pose2d scorePose) {
         public DriveToPoseV4Command driveToPoseV4Command() {
             return new DriveToPoseV4Command(
+                tag(), AutonomousConstants.APPROACH_DISTANCE_BLEND_FACTOR,
+                approachPose(),
+                scorePose()
+            );
+        }
+
+        public FasterDriveToPoseV4Command fastDriveToPoseV4Command() {
+            return new FasterDriveToPoseV4Command(
                 tag(), AutonomousConstants.APPROACH_DISTANCE_BLEND_FACTOR,
                 approachPose(),
                 scorePose()

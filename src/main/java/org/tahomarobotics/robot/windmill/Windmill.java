@@ -49,7 +49,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import org.littletonrobotics.junction.AutoLogOutput;
-import org.photonvision.proto.Photon;
 import org.tahomarobotics.robot.Robot;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.RobotMap;
@@ -178,6 +177,9 @@ public class Windmill extends SubsystemIF {
             new LoggedStatusSignal("Arm Encoder Position", armEncoder.getPosition()),
             new LoggedStatusSignal("Arm Encoder Velocity", armEncoder.getVelocity()),
             new LoggedStatusSignal("Elevator Left Motor Voltage", elevatorLeftMotor.getMotorVoltage()),
+            new LoggedStatusSignal("Elevator Left Motor Supply Voltage", elevatorLeftMotor.getSupplyVoltage()),
+            new LoggedStatusSignal("Elevator Right Motor Voltage", elevatorRightMotor.getMotorVoltage()),
+            new LoggedStatusSignal("Elevator Right Motor Supply Voltage", elevatorRightMotor.getSupplyVoltage()),
             new LoggedStatusSignal("Arm Motor Voltage", armMotor.getMotorVoltage())
         };
 
@@ -196,7 +198,7 @@ public class Windmill extends SubsystemIF {
     @Override
     public SubsystemIF initialize() {
         // Publish calibration commands
-        SmartDashboard.putData("Zero Windmill (Moving)", WindmillCommands.createElevatorZeroCommand(this));
+        SmartDashboard.putData("Zero Elevator (Moving)", WindmillCommands.createElevatorZeroCommand(this, false));
         SmartDashboard.putData("Calibrate Windmill", WindmillCommands.createCalibrateCommand(this));
 
         // Zero elevator on first enable
@@ -217,12 +219,18 @@ public class Windmill extends SubsystemIF {
     }
 
     public void calibrate() {
-        calibrate(0, ARM_CALIBRATION_POSE / ARM_BELT_REDUCTION);
+        calibrate(0, ARM_CALIBRATION_POSE / ARM_BELT_REDUCTION, true);
     }
 
-    public void calibrate(double elev, double arm) {
+    public void calibrate(boolean alsoArm) {
+        calibrate(0, ARM_CALIBRATION_POSE / ARM_BELT_REDUCTION, alsoArm);
+    }
+
+    public void calibrate(double elev, double arm, boolean alsoArm) {
         elevatorEncoder.setPosition(elev);
-        armEncoder.setPosition(arm);
+        if (alsoArm) {
+            armEncoder.setPosition(arm);
+        }
 
         simHeight = TrajectoryState.START.elev;
         simAngle = TrajectoryState.START.arm;

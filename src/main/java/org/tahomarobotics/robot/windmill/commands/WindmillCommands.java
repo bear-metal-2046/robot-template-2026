@@ -93,6 +93,10 @@ public class WindmillCommands {
     }
 
     public static Command createElevatorZeroCommand(Windmill windmill) {
+        return createElevatorZeroCommand(windmill, true);
+    }
+
+    public static Command createElevatorZeroCommand(Windmill windmill, boolean alsoArm) {
         Timer timer = new Timer();
 
         return new FunctionalCommand(() -> {
@@ -104,7 +108,7 @@ public class WindmillCommands {
             if (interrupted) { return; }
 
             Logger.info("Elevator Zeroed!");
-            windmill.calibrate();
+            windmill.calibrate(alsoArm);
 
             timer.stop();
         }, () -> !windmill.isElevatorMoving() && timer.hasElapsed(WindmillConstants.ELEVATOR_ZEROING_TIMEOUT), windmill)
@@ -113,7 +117,7 @@ public class WindmillCommands {
             );
     }
 
-    public static Command createAlgaeThrowCommmand(Windmill windmill) {
+    public static Command createAlgaeThrowCommand(Windmill windmill) {
         Command throwCommand = WindmillMoveCommand.fromTo(WindmillConstants.TrajectoryState.ALGAE_PRESCORE, WindmillConstants.TrajectoryState.ALGAE_SCORE)
                                                   .orElse(Commands.none())
                                                   .alongWith(Commands.waitSeconds(GrabberConstants.ALGAE_THROW_DELAY).andThen(GrabberCommands.createGrabberScoringCommands(grabber).getFirst()));
@@ -194,7 +198,7 @@ public class WindmillCommands {
             .andThen(Commands.runOnce(() -> windmill.setState(new WindmillState(0,
                                                                                 new WindmillState.ElevatorState(WindmillConstants.TrajectoryState.ALGAE_PASSOFF.elev, 0, 0),
                                                                                 new WindmillState.ArmState(Units.degreesToRadians(360) + WindmillConstants.TrajectoryState.ALGAE_PRESCORE.arm, 0, 0)))))
-            .andThen(Commands.runOnce(() -> windmill.calibrate(windmill.getElevatorHeight(), windmill.getArmPosition() - Units.degreesToRadians(360))))
+            .andThen(Commands.runOnce(() -> windmill.calibrate(windmill.getElevatorHeight(), windmill.getArmPosition() - Units.degreesToRadians(360), true)))
             .andThen(Commands.runOnce(() -> windmill.createTransitionCommand(WindmillConstants.TrajectoryState.ALGAE_PRESCORE)));
     }
 }

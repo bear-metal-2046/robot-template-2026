@@ -26,12 +26,10 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
-import com.ctre.phoenix6.hardware.CANrange;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.units.measure.Current;
-import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.littletonrobotics.junction.AutoLogOutput;
@@ -64,13 +62,10 @@ public class Grabber extends SubsystemIF {
     // Hardware
 
     private final TalonFX motor;
-    private final CANrange canRange;
 
     // Status Signals
 
     private final StatusSignal<Current> current;
-    private final StatusSignal<Distance> distance;
-    private final StatusSignal<Boolean> detection;
 
     private final LoggedStatusSignal[] statusSignals;
 
@@ -103,25 +98,19 @@ public class Grabber extends SubsystemIF {
         // Create hardware
 
         motor = new TalonFX(RobotMap.END_EFFECTOR_MOTOR);
-        canRange = new CANrange(RobotMap.RANGE_SENSOR);
 
         // Configure hardware
 
         RobustConfigurator.tryConfigureTalonFX("Grabber Motor", motor, motorConfig);
-        RobustConfigurator.tryConfigureCANrange("Grabber Range Sensor", canRange, canRangeConfig);
 
         // Bind status signals
 
         current = motor.getSupplyCurrent();
-        distance = canRange.getDistance();
-        detection = canRange.getIsDetected();
 
         statusSignals = new LoggedStatusSignal[]{
             new LoggedStatusSignal("Grabber Voltage", motor.getMotorVoltage()),
             new LoggedStatusSignal("Grabber Velocity", motor.getVelocity()),
-            new LoggedStatusSignal("Grabber Current", current),
-            new LoggedStatusSignal("CANrange Distance", distance),
-            new LoggedStatusSignal("CANrange In Range", detection)
+            new LoggedStatusSignal("Grabber Current", current)
         };
 
         LoggedStatusSignal.setUpdateFrequencyForAll(statusSignals, RobotConfiguration.MECHANISM_UPDATE_FREQUENCY);
@@ -151,17 +140,11 @@ public class Grabber extends SubsystemIF {
 
     private void stateMachine() {
         if (state == GrabberState.CORAL_COLLECTING) {
-            if (!RobotConfiguration.FEATURE_BEAN_BAKE) {
-                if (coralDetectionDebouncer.calculate(isInRange())) {
-                    transitionToCoralHolding();
-                }
-            } else {
-                if (coralDetectionDebouncer.calculate(indexer.isBeanBakeTripped()) && !collectingCoral) {
-                    collectingCoral = true;
-                }
-                if (!indexer.isBeanBakeTripped() && collectingCoral) {
-                    transitionToCoralHolding();
-                }
+            if (coralDetectionDebouncer.calculate(indexer.isBeanBakeTripped()) && !collectingCoral) {
+                collectingCoral = true;
+            }
+            if (!indexer.isBeanBakeTripped() && collectingCoral) {
+                transitionToCoralHolding();
             }
         } else if (state == GrabberState.ALGAE_COLLECTING && RobotConfiguration.FEATURE_ALGAE_END_EFFECTOR) {
             boolean isTripped = getCurrent() > ALGAE_COLLECTION_CURRENT_THRESHOLD;
@@ -284,23 +267,6 @@ public class Grabber extends SubsystemIF {
 
     public GrabberState getState() {
         return state;
-    }
-
-    @AutoLogOutput(key="Grabber/Is Coral Detected?")
-    public boolean isCoralDetected() {
-        return state == GrabberState.CORAL_COLLECTING
-               && windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.CORAL_COLLECT
-               && !windmill.isRunningTrajectory()
-               && isInRange();
-    }
-
-    public double getRange() {
-        return distance.getValueAsDouble();
-    }
-
-    @AutoLogOutput(key="Grabber/Is CANRange Tripped?")
-    public boolean isInRange() {
-        return Math.abs(getRange() - CORAL_CANRANGE_DISTANCE) < CORAL_CANRANGE_DISTANCE_TOLERANCE;
     }
 
     // -- Periodic --

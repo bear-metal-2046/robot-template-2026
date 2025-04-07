@@ -37,15 +37,12 @@ public class GrabberConstants {
     public static final double CORAL_HOLD_VOLTAGE = RobotConfiguration.FEATURE_ALGAE_END_EFFECTOR ? 0 : -0.25;
     public static final double ALGAE_HOLD_VOLTAGE = -1.35;
 
-    public static final double CORAL_COLLECTION_DELAY = RobotConfiguration.FEATURE_BEAN_BAKE ? 0.02 : 0.05;
+    public static final double CORAL_COLLECTION_DELAY = 0.02;
     public static final double ALGAE_COLLECTION_DELAY = 0.1;
-
-    public static final double CORAL_CANRANGE_DISTANCE = 0.13;
-    public static final double CORAL_CANRANGE_DISTANCE_TOLERANCE = 0.01;
 
     public static final double GEAR_REDUCTION;
 
-    public static final double ALGAE_THROW_DELAY = (WindmillConstants.ARM_ALGAE_THROW_VELOCITY / (Math.PI)) * 0.05125; // Should be the fastest point of the algae throw trajectory
+    public static final double ALGAE_THROW_DELAY = (WindmillConstants.ARM_ALGAE_THROW_VELOCITY / (Math.PI)) * 0.05125 + 0.025; // Should be the fastest point of the algae throw trajectory
 
     static {
         switch (Identity.robotID) {

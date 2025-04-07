@@ -22,12 +22,17 @@
 
 package org.tahomarobotics.robot.auto.commands;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import org.tahomarobotics.robot.RobotConfiguration;
+import org.tahomarobotics.robot.auto.AutonomousConstants;
 import org.tahomarobotics.robot.chassis.Chassis;
 import org.tahomarobotics.robot.vision.Vision;
 import org.tinylog.Logger;
@@ -67,13 +72,13 @@ public class DriveToPoseV4Command extends Command {
 
         x = new ProfiledPIDController(
             TRANSLATION_ALIGNMENT_KP, TRANSLATION_ALIGNMENT_KI, TRANSLATION_ALIGNMENT_KD,
-            TRANSLATION_ALIGNMENT_CONSTRAINTS
+            TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS
         );
         x.setTolerance(0);
 
         y = new ProfiledPIDController(
             TRANSLATION_ALIGNMENT_KP, TRANSLATION_ALIGNMENT_KI, TRANSLATION_ALIGNMENT_KD,
-            TRANSLATION_ALIGNMENT_CONSTRAINTS
+            TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS
         );
         y.setTolerance(0);
 
@@ -102,8 +107,20 @@ public class DriveToPoseV4Command extends Command {
         r.reset(currentPose.getRotation().getRadians(), currentVelocity.omegaRadiansPerSecond);
         syncGoal();
 
+        if (RobotState.isAutonomous()) {
+            x.setConstraints(AUTO_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+            y.setConstraints(AUTO_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+        } else {
+            x.setConstraints(TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+            y.setConstraints(TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+        }
+
         chassis.setAutoAligning(true);
-        Vision.getInstance().isolate(isolationTarget);
+        if (RobotConfiguration.FEATURE_REEF_ISOLATION) {
+            Vision.getInstance().isolate(AutonomousConstants.getAlliance() == DriverStation.Alliance.Blue ? BLUE_REEF_APRILTAGS : RED_REEF_APRILTAGS);
+        } else {
+            Vision.getInstance().isolate(isolationTarget);
+        }
 
         org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/Waypoints", waypoints.toArray(Pose2d[]::new));
 
@@ -122,8 +139,10 @@ public class DriveToPoseV4Command extends Command {
             Logger.info("Transition to waypoint {}", targetWaypoint);
         }
 
-        double vx = x.calculate(currentPose.getX());
-        double vy = y.calculate(currentPose.getY());
+        double speedReduction = targetWaypoint == waypoints.size() - 1 ? MathUtil.clamp(distanceToGoalPose, 0.75, 1.0) : 1;
+
+        double vx = x.calculate(currentPose.getX()) * speedReduction;
+        double vy = y.calculate(currentPose.getY()) * speedReduction;
         double vr = r.calculate(currentPose.getRotation().getRadians());
 
         chassis.drive(new ChassisSpeeds(vx, vy, vr), true);

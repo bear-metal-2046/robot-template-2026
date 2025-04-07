@@ -35,7 +35,6 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import org.tahomarobotics.robot.auto.AutonomousConstants;
-import org.tahomarobotics.robot.auto.commands.DriveToPoseV4Command;
 import org.tahomarobotics.robot.auto.commands.DriveToPoseV5Command;
 import org.tahomarobotics.robot.chassis.Chassis;
 import org.tahomarobotics.robot.chassis.ChassisCommands;
@@ -117,6 +116,23 @@ public class OI extends SubsystemIF {
         return INSTANCE;
     }
 
+    // -- FUDGE --
+
+    public double getPoleFudge(int index) {
+        char key = (char) ('A' + index);
+        boolean isRed = AutonomousConstants.getAlliance() == DriverStation.Alliance.Red;
+        WindmillConstants.TrajectoryState trajectoryState = windmill.getTargetTrajectoryState();
+        boolean isL4 = trajectoryState == WindmillConstants.TrajectoryState.L4 || windmill.willMoveToL4OnAutoAlign();
+
+        double fudge = isRed ? Units.inchesToMeters(1) : 0;
+
+        if (isRed && key == 'F' && !isL4) {
+            fudge = Units.inchesToMeters(4);
+        }
+
+        return fudge;
+    }
+
     // -- Bindings --
 
     public void configureControllerBindings() {
@@ -158,8 +174,8 @@ public class OI extends SubsystemIF {
                             // Drive to Pose
                             AutonomousConstants.Objective pole =
                                 AutonomousConstants.getObjectiveForPole(nearestIndex, AutonomousConstants.getAlliance())
-                                    .fudgeY(0);
-                            var dtp = new DriveToPoseV4Command(pole.tag(), AutonomousConstants.APPROACH_DISTANCE_BLEND_FACTOR, pole.scorePose());
+                                    .fudgeY(Chassis.getInstance().getAutoAligningOffset() + getPoleFudge(nearestIndex));
+                            var dtp = pole.driveToPoseV4Command();
 
                             boolean isHighAlgae = (nearestIndex / 2) % 2 == 0;
 
@@ -179,7 +195,7 @@ public class OI extends SubsystemIF {
 
                             return Commands.parallel(
                                 dtp.andThen(Commands.waitSeconds(0.75)).finallyDo(grabber::transitionToDisabled),
-                                dtp.runWhen(() -> dtp.getTargetWaypoint() == 0 && dtp.getDistanceToWaypoint() < STOW_TO_L4_DISTANCE,
+                                dtp.runWhen(() -> dtp.getTargetWaypoint() == 1 && dtp.getDistanceToWaypoint() < STOW_TO_L4_DISTANCE,
                                             stowToL4).onlyIf(() -> windmill.willMoveToL4OnAutoAlign() && windmill.getTargetTrajectoryState() == WindmillConstants.TrajectoryState.STOW),
                                 dtp.runWhen(
                                     () -> dtp.getDistanceToWaypoint() < AutonomousConstants.AUTO_SCORE_DISTANCE,
@@ -192,7 +208,7 @@ public class OI extends SubsystemIF {
         );
 
         controller.rightBumper().onTrue(Commands.deferredProxy(
-            () -> (collector.getCollectionMode() == GamePiece.ALGAE) ? WindmillCommands.createAlgaeThrowCommmand(windmill) : Commands.none()).onlyWhile(controller.rightBumper()));
+            () -> (collector.getCollectionMode() == GamePiece.ALGAE) ? WindmillCommands.createAlgaeThrowCommand(windmill) : Commands.none()).onlyWhile(controller.rightBumper()));
 
         // -- Joystick Press --
 
@@ -258,6 +274,7 @@ public class OI extends SubsystemIF {
 
         // Start
         if (RobotConfiguration.isClimberEnabled()) {
+            // TODO: Debounce presses so that accidental double pressing doesnt mess stuff up
             controller.start().onTrue(ClimberCommands.getClimberCommand());
         }
         // -- ABXY --
@@ -338,7 +355,7 @@ public class OI extends SubsystemIF {
 
         // Y - Zero elevator
 
-        lessImportantController.y().onTrue(WindmillCommands.createElevatorZeroCommand(windmill));
+        lessImportantController.y().onTrue(WindmillCommands.createElevatorZeroCommand(windmill, false));
 
         // X - RESET
         lessImportantController.x().onTrue(

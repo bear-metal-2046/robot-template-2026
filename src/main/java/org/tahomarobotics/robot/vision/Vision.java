@@ -25,7 +25,6 @@ package org.tahomarobotics.robot.vision;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.*;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import org.littletonrobotics.junction.Logger;
 import org.photonvision.PhotonUtils;
 import org.photonvision.simulation.VisionSystemSim;
@@ -149,10 +148,10 @@ public class Vision extends SubsystemIF implements AutoCloseable {
         return Optional.of(fieldToCoral);
     }
 
-    public void isolate(int tag) {
-        org.tinylog.Logger.info("Isolating on tag: " + tag);
+    public void isolate(Integer... tags) {
+        org.tinylog.Logger.info("Isolating on tags: " + Arrays.toString(tags));
 
-        aprilTagCameras.values().forEach(c -> c.isolate(tag));
+        aprilTagCameras.values().forEach(c -> c.isolate(tags));
     }
 
     public void globalize() {

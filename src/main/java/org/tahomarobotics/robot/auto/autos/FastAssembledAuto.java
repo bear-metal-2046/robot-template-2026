@@ -30,7 +30,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.auto.AutonomousConstants;
-import org.tahomarobotics.robot.auto.commands.DriveToPoseV4Command;
+import org.tahomarobotics.robot.auto.commands.FasterDriveToPoseV4Command;
 import org.tahomarobotics.robot.chassis.Chassis;
 import org.tahomarobotics.robot.collector.Collector;
 import org.tahomarobotics.robot.collector.CollectorCommands;
@@ -47,7 +47,7 @@ import java.util.function.DoubleSupplier;
 
 import static org.tahomarobotics.robot.windmill.WindmillConstants.TrajectoryState.*;
 
-public class AssembledAuto extends SequentialCommandGroup {
+public class FastAssembledAuto extends SequentialCommandGroup {
     // -- Constants --
 
     private static final double SCORING_DISTANCE = Units.inchesToMeters(2);
@@ -74,7 +74,7 @@ public class AssembledAuto extends SequentialCommandGroup {
 
     // -- Initialization --
 
-    public AssembledAuto(boolean isLeft, LinkedHashMap<Character, DoubleSupplier> scorePositions, DriverStation.Alliance alliance, String name) {
+    public FastAssembledAuto(boolean isLeft, LinkedHashMap<Character, DoubleSupplier> scorePositions, DriverStation.Alliance alliance, String name) {
         setName(name + " " + (isLeft ? "Left" : "Right"));
 
         this.alliance = alliance;
@@ -134,7 +134,7 @@ public class AssembledAuto extends SequentialCommandGroup {
 
     public Command driveToFirstPoleThenScore(char pole, DoubleSupplier fudge) {
         // Drive to the scoring position
-        DriveToPoseV4Command dtp = AutonomousConstants.getObjectiveForPole(pole - 'A', alliance).fudgeY(fudge.getAsDouble()).driveToPoseV4Command();
+        var dtp = AutonomousConstants.getObjectiveForPole(pole - 'A', alliance).fudgeY(fudge.getAsDouble()).fastDriveToPoseV4Command();
 
         // Move arm from STOW to L4
         Command stowToL4 = WindmillMoveCommand.fromTo(STOW, L4).orElseThrow();
@@ -169,7 +169,9 @@ public class AssembledAuto extends SequentialCommandGroup {
 
     public Command driveToPoleThenScoreWhileCollecting(char pole, DoubleSupplier fudge) {
         // Drive to the scoring position
-        DriveToPoseV4Command dtp = AutonomousConstants.getObjectiveForPole(pole - 'A', alliance).fudgeY(fudge.getAsDouble()).driveToPoseV4Command();
+        var o = AutonomousConstants.getObjectiveForPole(pole - 'A', alliance).fudgeY(fudge.getAsDouble());
+        var dtp = pole == 'J' ? new FasterDriveToPoseV4Command(
+            -1, AutonomousConstants.APPROACH_DISTANCE_BLEND_FACTOR, o.approachPose(), o.scorePose()) : o.fastDriveToPoseV4Command();
 
         // Move arm from STOW to L4
         Command stowToL4 = WindmillMoveCommand.fromTo(STOW, L4).orElseThrow();
@@ -210,7 +212,7 @@ public class AssembledAuto extends SequentialCommandGroup {
         return Commands.defer(
             () -> {
                 var dtp = AutonomousConstants.getObjectiveForCoralStation(isLeft, Chassis.getInstance().getPose().getTranslation(), alliance)
-                                             .driveToPoseV4Command();
+                                             .fastDriveToPoseV4Command();
 
                 return Commands.parallel(
                     Commands.runOnce(timer::restart),

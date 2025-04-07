@@ -25,22 +25,26 @@ package org.tahomarobotics.robot.auto.commands;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import org.tahomarobotics.robot.RobotConfiguration;
+import org.tahomarobotics.robot.auto.AutonomousConstants;
 import org.tahomarobotics.robot.chassis.Chassis;
 import org.tahomarobotics.robot.vision.Vision;
 import org.tinylog.Logger;
 
-import java.util.Optional;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.BooleanSupplier;
-import java.util.function.Supplier;
 
 import static org.tahomarobotics.robot.auto.AutonomousConstants.*;
 
-public class DriveToPoseV5Command extends Command {
+public class FasterDriveToPoseV4Command extends Command {
     // -- Requirements --
 
     private final Chassis chassis = Chassis.getInstance();
@@ -54,17 +58,17 @@ public class DriveToPoseV5Command extends Command {
     private Pose2d startPose;
 
     private final int isolationTarget;
-    private Translation2d targetTranslation;
-    private Translation2d lastTargetTranslation;
-    private Rotation2d targetRotation;
-    private final Supplier<Optional<Translation2d>> targetSupplier;
+    private final double blendingDistance;
+
+    private int targetWaypoint = 0;
+    private final List<Pose2d> waypoints;
 
     // -- Initialization --
 
-    public DriveToPoseV5Command(int isolationTarget, Supplier<Optional<Translation2d>> targetSupplier, Translation2d defaultTarget) {
+    public FasterDriveToPoseV4Command(int isolationTarget, double blendingDistance, Pose2d... waypoints) {
         this.isolationTarget = isolationTarget;
-        this.targetSupplier = targetSupplier;
-        this.targetTranslation = defaultTarget;
+        this.waypoints = Arrays.stream(waypoints).filter(Objects::nonNull).toList();
+        this.blendingDistance = blendingDistance;
 
         x = new ProfiledPIDController(
             TRANSLATION_ALIGNMENT_KP, TRANSLATION_ALIGNMENT_KI, TRANSLATION_ALIGNMENT_KD,
@@ -85,6 +89,7 @@ public class DriveToPoseV5Command extends Command {
         r.setTolerance(ROTATION_ALIGNMENT_TOLERANCE);
         r.enableContinuousInput(-Math.PI, Math.PI);
 
+        syncGoal();
         addRequirements(chassis);
     }
 
@@ -95,48 +100,60 @@ public class DriveToPoseV5Command extends Command {
         Pose2d currentPose = chassis.getPose();
         ChassisSpeeds currentVelocity = chassis.getFieldChassisSpeeds();
 
-        Logger.info("Driving to supplied position going through {}", currentPose);
+        Logger.info("Driving to {} from {} going through {}", waypoints.get(0), waypoints.subList(1, waypoints.size()), currentPose);
 
-        x.reset(currentPose.getX(), 0);
-        y.reset(currentPose.getY(), 0);
+        x.reset(currentPose.getX(), currentVelocity.vxMetersPerSecond);
+        y.reset(currentPose.getY(), currentVelocity.vyMetersPerSecond);
         r.reset(currentPose.getRotation().getRadians(), currentVelocity.omegaRadiansPerSecond);
+        syncGoal();
+
+        if (RobotState.isAutonomous()) {
+            x.setConstraints(FASTER_AUTO_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+            y.setConstraints(FASTER_AUTO_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+        } else {
+            x.setConstraints(TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+            y.setConstraints(TELEOP_TRANSLATION_ALIGNMENT_CONSTRAINTS);
+        }
 
         chassis.setAutoAligning(true);
-        Vision.getInstance().isolate(isolationTarget);
+        if (RobotConfiguration.FEATURE_REEF_ISOLATION) {
+            Vision.getInstance().isolate(AutonomousConstants.getAlliance() == DriverStation.Alliance.Blue ? BLUE_REEF_APRILTAGS : RED_REEF_APRILTAGS);
+        } else {
+            Vision.getInstance().isolate(isolationTarget);
+        }
+
+        org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/Waypoints", waypoints.toArray(Pose2d[]::new));
 
         startPose = currentPose;
     }
 
     @Override
     public void execute() {
-//        // If there is too big a jump in the target, don't update it
-//        if (targetTranslation.getDistance(targetSupplier.get().orElse(new Translation2d())) < MAX_JUMP_DISTANCE) {
-//            return;
-//        }
-
-        // Calculate target position and rotation
         Pose2d currentPose = chassis.getPose();
-        targetTranslation = targetSupplier.get().orElse(targetTranslation);
-        targetRotation = targetTranslation.minus(currentPose.getTranslation()).getAngle();
 
-        syncGoal();
+        double distanceToGoalPose = getDistanceToWaypoint();
+        if (distanceToGoalPose < blendingDistance && targetWaypoint < waypoints.size() - 1) {
+            targetWaypoint++;
+            syncGoal();
 
-        // Calculate target speeds
-        double distanceToGoalPose = currentPose.getTranslation().getDistance(targetTranslation);
+            Logger.info("Transition to waypoint {}", targetWaypoint);
+        }
 
-        double speedReduction = MathUtil.clamp(distanceToGoalPose, 0.75, 1.0);
+        double speedReduction = 1;
+        if (RobotState.isAutonomous()) {
+            speedReduction = targetWaypoint == waypoints.size() - 1 ? MathUtil.clamp(distanceToGoalPose, 0.75, 1.0) : 1;
+        }
 
         double vx = x.calculate(currentPose.getX()) * speedReduction;
         double vy = y.calculate(currentPose.getY()) * speedReduction;
         double vr = r.calculate(currentPose.getRotation().getRadians());
 
-        // Drive with calculated speeds
         chassis.drive(new ChassisSpeeds(vx, vy, vr), true);
 
         // Logging
         org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/X Distance", getVerticalDistanceToWaypoint());
         org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/Y Distance", getHorizontalDistanceToWaypoint());
-        org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/Target Waypoint", targetTranslation);
+        org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/Target Waypoint", waypoints.get(targetWaypoint));
 
         org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/vx", vx);
         org.littletonrobotics.junction.Logger.recordOutput("Autonomous/Drive To Pose/vy", vy);
@@ -145,10 +162,10 @@ public class DriveToPoseV5Command extends Command {
 
     @Override
     public boolean isFinished() {
-        Translation2d robotToTarget = chassis.getPose().getTranslation().minus(targetTranslation);
+        Translation2d robotToTarget = chassis.getPose().getTranslation().minus(waypoints.get(targetWaypoint).getTranslation());
         return (Math.abs(robotToTarget.getX()) < X_TOLERANCE
                 && Math.abs(robotToTarget.getY()) < Y_TOLERANCE
-        );
+                && r.atGoal());
     }
 
     @Override
@@ -168,11 +185,11 @@ public class DriveToPoseV5Command extends Command {
     }
 
     public double getDistanceToWaypoint() {
-        return targetTranslation.getDistance(chassis.getPose().getTranslation());
+        return waypoints.get(targetWaypoint).getTranslation().getDistance(chassis.getPose().getTranslation());
     }
 
     public double getAngleToWaypoint() {
-        return targetRotation.getRadians() - chassis.getPose().getRotation().getRadians();
+        return waypoints.get(targetWaypoint).getRotation().getRadians() - chassis.getPose().getRotation().getRadians();
     }
 
     public double getHorizontalDistanceToWaypoint() {
@@ -181,6 +198,10 @@ public class DriveToPoseV5Command extends Command {
 
     public double getVerticalDistanceToWaypoint() {
         return getDistanceToWaypoint() * Math.sin(getAngleToWaypoint());
+    }
+
+    public int getTargetWaypoint() {
+        return targetWaypoint;
     }
 
     // -- Command Helpers --
@@ -192,8 +213,10 @@ public class DriveToPoseV5Command extends Command {
     // -- Helpers --
 
     private void syncGoal() {
-        x.setGoal(targetTranslation.getX());
-        y.setGoal(targetTranslation.getY());
-        r.setGoal(targetRotation.getRadians());
+        Pose2d goalPose = waypoints.get(targetWaypoint);
+
+        x.setGoal(goalPose.getX());
+        y.setGoal(goalPose.getY());
+        r.setGoal(goalPose.getRotation().getRadians());
     }
 }

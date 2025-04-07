@@ -87,7 +87,7 @@ public class Chassis extends SubsystemIF {
     @AutoLogOutput(key = "Chassis/Auto Aligning?")
     private boolean autoAligning = false;
     @AutoLogOutput(key = "Chassis/Auto Alignment Offset")
-    private double autoAligningOffset = 0;
+    private double autoAligningOffset = AutonomousConstants.DEFAULT_REEF_HORIZONTAL_ALIGNMENT_FUDGE;
 
     // State
 
@@ -311,10 +311,12 @@ public class Chassis extends SubsystemIF {
         return autoAligning;
     }
 
+    public double getAutoAligningOffset() {
+        return autoAligningOffset;
+    }
+
     public void setAutoAligningOffset(double offset) {
         autoAligningOffset = offset;
-
-        AutonomousConstants.computePolePositions(Units.inchesToMeters(offset));
     }
 
     public void incrementAutoAligningOffset(double increment) {

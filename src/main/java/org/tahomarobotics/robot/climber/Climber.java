@@ -261,6 +261,13 @@ public class Climber extends SubsystemIF {
         solenoidVoltage = ratchetSolenoid.getMotorOutputVoltage();
     }
 
+    // -- On --
+
+    @Override
+    public void onDisabledInit() {
+        engageSolenoid();
+    }
+
     // -- States --
 
     public enum ClimberState {

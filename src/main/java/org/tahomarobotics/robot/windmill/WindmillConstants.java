@@ -40,7 +40,7 @@ public final class WindmillConstants {
                      Units.inchesToMeters(15.257), Units.degreesToRadians(127.820)),  // ALGAE: B button
         LOW_DESCORE(0.254, Units.degreesToRadians(133.945),
                     Units.inchesToMeters(0.815), Units.degreesToRadians(127.742)),  // ALGAE: A button
-        CORAL_COLLECT(0.430, Units.degreesToRadians(268.809),
+        CORAL_COLLECT(0.430, Units.degreesToRadians(268),
                       Units.inchesToMeters(17.069), Units.degreesToRadians(267.809)),  // CORAL: RS button toggle
         STOW(Units.inchesToMeters(1.901), Units.degreesToRadians(89.913),
              Units.inchesToMeters(1.901), Units.degreesToRadians(89.913)),  // RS button toggle
@@ -50,9 +50,9 @@ public final class WindmillConstants {
                       Units.inchesToMeters(42.344), Units.degreesToRadians(287.809)),
         ALGAE_PROCESSOR(0.567, Units.degreesToRadians(-61.566),
                         0.567, Units.degreesToRadians(-61.566)),  // ALGAE: X button
-        ALGAE_PRESCORE(Units.inchesToMeters(47.244), Units.degreesToRadians(20),
-                       Units.inchesToMeters(47.244), Units.degreesToRadians(20)),  // ALGAE: Y button
-        ALGAE_SCORE(Units.inchesToMeters(47.344), Units.degreesToRadians(89.913),
+        ALGAE_PRESCORE(Units.inchesToMeters(47.244), Units.degreesToRadians(0),
+                       Units.inchesToMeters(47.244), Units.degreesToRadians(0)),  // ALGAE: Y button
+        ALGAE_SCORE(Units.inchesToMeters(47.344), Units.degreesToRadians(89.913 - 25),
                     Units.inchesToMeters(47.344), Units.degreesToRadians(89.913)),  // ALGAE: Y button
         L4(Units.inchesToMeters(42.344), Units.degreesToRadians(120.548),
            Units.inchesToMeters(40.344), Units.degreesToRadians(120.548)),  // CORAL: Y button
