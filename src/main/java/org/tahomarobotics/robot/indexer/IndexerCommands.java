@@ -28,7 +28,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 public class IndexerCommands {
     public static Pair<Command, Command> createIndexerCommands(Indexer indexer) {
         Command onTrue = indexer.runOnce(indexer::transitionToCollecting);
-        Command onFalse = indexer.runOnce(indexer::transitionToDisabled);
+        Command onFalse = indexer.runOnce(indexer::transitionToDisabled).onlyIf(() -> indexer.getState() != IndexerConstants.IndexerState.QUEUEING);
 
         return Pair.of(onTrue, onFalse);
     }

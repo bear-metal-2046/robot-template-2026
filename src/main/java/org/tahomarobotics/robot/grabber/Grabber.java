@@ -193,6 +193,7 @@ public class Grabber extends SubsystemIF {
     public void transitionToCoralHolding() {
         collectingCoral = false;
         setTargetState(GrabberState.CORAL_HOLDING);
+        Indexer.getInstance().transitionToDisabled();
     }
 
     public void transitionToAlgaeHolding() {

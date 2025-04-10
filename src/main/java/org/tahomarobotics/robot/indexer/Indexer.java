@@ -24,6 +24,7 @@ package org.tahomarobotics.robot.indexer;
 
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.controls.MotionMagicVelocityVoltage;
+import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.units.measure.Current;
@@ -31,17 +32,21 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import org.littletonrobotics.junction.AutoLogOutput;
 import org.tahomarobotics.robot.RobotConfiguration;
 import org.tahomarobotics.robot.RobotMap;
+import org.tahomarobotics.robot.collector.Collector;
+import org.tahomarobotics.robot.collector.CollectorConstants;
+import org.tahomarobotics.robot.grabber.Grabber;
 import org.tahomarobotics.robot.util.RobustConfigurator;
 import org.tahomarobotics.robot.util.SubsystemIF;
 import org.tahomarobotics.robot.util.signals.LoggedStatusSignal;
 import org.tahomarobotics.robot.util.sysid.SysIdTests;
+import org.tahomarobotics.robot.windmill.Windmill;
+import org.tahomarobotics.robot.windmill.WindmillConstants;
 
 import java.util.List;
 
 import static edu.wpi.first.units.Units.Second;
 import static edu.wpi.first.units.Units.Volts;
-import static org.tahomarobotics.robot.indexer.IndexerConstants.IndexerState;
-import static org.tahomarobotics.robot.indexer.IndexerConstants.configuration;
+import static org.tahomarobotics.robot.indexer.IndexerConstants.*;
 
 public class Indexer extends SubsystemIF {
     private static final Indexer INSTANCE = new Indexer();
@@ -63,6 +68,7 @@ public class Indexer extends SubsystemIF {
     // Control Requests
 
     private final MotionMagicVelocityVoltage velocityControl = new MotionMagicVelocityVoltage(0);
+    private final MotionMagicVoltage positionControl = new MotionMagicVoltage(0);
 
     // State
 
@@ -104,7 +110,12 @@ public class Indexer extends SubsystemIF {
 
     private void setTargetState(IndexerState state) {
         this.state = state;
-        motor.setControl(velocityControl.withVelocity(state.velocity));
+
+        switch (state.type) {
+            case NONE -> motor.stopMotor();
+            case POSITION -> motor.setControl(positionControl.withPosition(state.value).withSlot(1));
+            case VELOCITY -> motor.setControl(velocityControl.withVelocity(state.value).withSlot(0));
+        }
     }
 
     // Transitions
@@ -114,7 +125,15 @@ public class Indexer extends SubsystemIF {
     }
 
     public void transitionToCollecting() {
+        if (!isArmAtCollecting()) {
+            setTargetState(IndexerState.QUEUE_COLLECTING);
+            return;
+        }
         setTargetState(IndexerState.COLLECTING);
+    }
+
+    public void transitionToQueueing() {
+        setTargetState(IndexerState.QUEUEING);
     }
 
     public void transitionToPassing() {
@@ -127,6 +146,10 @@ public class Indexer extends SubsystemIF {
 
     // -- Getter(s) --
 
+    public IndexerState getState() {
+        return state;
+    }
+
     public double getCurrent() {
         return current.getValueAsDouble();
     }
@@ -136,12 +159,29 @@ public class Indexer extends SubsystemIF {
         return !beanBake.get();
     }
 
+    @AutoLogOutput(key = "Indexer/Is Arm Collecting?")
+    private boolean isArmAtCollecting() {
+        return Windmill.getInstance().getTargetTrajectoryState() == WindmillConstants.TrajectoryState.CORAL_COLLECT
+            && Windmill.getInstance().isAtTargetTrajectoryState();
+    }
+
     // -- Periodic --
+
+    private void stateMachine() {
+        if (!isArmAtCollecting() && isBeanBakeTripped()) {
+            transitionToQueueing();
+            Collector.getInstance().setTargetCollectorState(CollectorConstants.TargetCollectorState.DISABLED);
+        } else if ((state == IndexerState.QUEUEING || isBeanBakeTripped()) && isArmAtCollecting()) {
+            if (!Grabber.getInstance().isHoldingCoral()) transitionToPassing();
+            Grabber.getInstance().transitionToCoralCollecting();
+        }
+    }
 
     @Override
     public void periodic() {
         LoggedStatusSignal.refreshAll(statusSignals);
         LoggedStatusSignal.log("Indexer/", statusSignals);
+        stateMachine();
     }
 
     @Override

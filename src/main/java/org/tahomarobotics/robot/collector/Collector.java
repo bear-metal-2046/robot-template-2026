@@ -253,7 +253,7 @@ public class Collector extends SubsystemIF {
         }
     }
 
-    private void setTargetCollectorState(TargetCollectorState state) {
+    public void setTargetCollectorState(TargetCollectorState state) {
         if (checkZeroingGuard()) { return; }
 
         targetCollectorState = state;

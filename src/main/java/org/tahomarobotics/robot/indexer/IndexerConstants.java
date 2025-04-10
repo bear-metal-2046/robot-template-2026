@@ -29,21 +29,30 @@ public class IndexerConstants {
     // Motion Magic Constraints
 
     private static final double MAX_VELOCITY = 48; // Rotations per second
+    private static final double QUEUE_VELOCITY = MAX_VELOCITY / 3;
     private static final double MAX_ACCELERATION = MAX_VELOCITY * 4;
     private static final double MAX_JERK = MAX_ACCELERATION * 4;
 
     // States
 
     public enum IndexerState {
-        DISABLED(0),
-        COLLECTING(MAX_VELOCITY),
-        PASSING(MAX_VELOCITY),
-        EJECTING(-MAX_VELOCITY);
+        DISABLED(MotionType.NONE, 0),
+        COLLECTING(MotionType.VELOCITY, MAX_VELOCITY),
+        QUEUE_COLLECTING(MotionType.VELOCITY, QUEUE_VELOCITY),
+        QUEUEING(MotionType.NONE, 0),
+        PASSING(MotionType.VELOCITY, MAX_VELOCITY),
+        EJECTING(MotionType.VELOCITY, -MAX_VELOCITY);
 
-        public final double velocity;
+        public final MotionType type;
+        public final double value;
 
-        IndexerState(double velocity) {
-            this.velocity = velocity;
+        IndexerState(MotionType type, double value) {
+            this.type = type;
+            this.value = value;
+        }
+
+        public enum MotionType {
+            POSITION, VELOCITY, NONE
         }
     }
 
@@ -58,12 +67,19 @@ public class IndexerConstants {
                 .withMotionMagicCruiseVelocity(MAX_VELOCITY)
                 .withMotionMagicAcceleration(MAX_ACCELERATION)
                 .withMotionMagicJerk(MAX_JERK)
-        ).withSlot0(
+        ).withSlot0(    // For velocity control
             new Slot0Configs()
                 .withKP(0.083374)
                 .withKS(0.17818)
                 .withKV(0.12464)
                 .withKA(0.0039997)
+        ).withSlot1(    // For position control
+            new Slot1Configs()
+                .withKP(9.8196)
+                .withKD(0.099029)
+                .withKS(0.24168)
+                .withKV(0.096396)
+                .withKA(0.0021492)
         ).withAudio(
             new AudioConfigs()
                 .withBeepOnBoot(true)
