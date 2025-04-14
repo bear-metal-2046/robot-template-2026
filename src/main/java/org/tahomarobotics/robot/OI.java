@@ -158,6 +158,15 @@ public class OI extends SubsystemIF {
         Pair<Command, Command> indexerEjectingCommands = IndexerCommands.createIndexerEjectingCommands(indexer);
         controller.povLeft().onTrue(indexerEjectingCommands.getFirst()).onFalse(indexerEjectingCommands.getSecond());
 
+        // Right - Feeder station collect
+        controller.povRight().onTrue(Commands.defer(
+            () -> windmill.createTransitionCommand(
+                (collector.getCollectionMode() == GamePiece.CORAL) ?
+                    WindmillConstants.TrajectoryState.FEEDER_COLLECT :
+                    WindmillConstants.TrajectoryState.ALGAE_COLLECT
+            ), Set.of(windmill)
+        ));
+
         // -- Bumpers --
 
         // Left - Toggle collector deployment

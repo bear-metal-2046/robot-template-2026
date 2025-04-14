@@ -81,10 +81,12 @@ public class Grabber extends SubsystemIF {
     boolean collectingCoral = false;
     final Timer coralCollectionTimer = new Timer();
     final Timer algaeCollectionTimer = new Timer();
+    final Timer feederCollectionTimer = new Timer();
     private final Timer belowTimer = new Timer();
 
     private final Debouncer coralDetectionDebouncer = new Debouncer(CORAL_COLLECTION_DELAY);
     private final Debouncer coralDetectionDebouncer2 = new Debouncer(CORAL_INDEX_DELAY);
+    private final Debouncer feederCollectionDebouncer = new Debouncer(FEEDER_COLLECTION_DELAY);
 
     // -- Initialization --
 
@@ -174,6 +176,10 @@ public class Grabber extends SubsystemIF {
             coralCollectionTimer.stop();
             coralCollectionTimer.reset();
         }
+
+        if (state == GrabberState.FEEDER_COLLECTING && feederCollectionDebouncer.calculate(getCurrent() > CORAL_COLLECTION_CURRENT_THRESHOLD) && feederCollectionTimer.hasElapsed(FEEDER_COLLECTION_SPIKE_DELAY)) {
+            transitionToCoralHolding();
+        }
     }
 
     // Transitions
@@ -202,6 +208,12 @@ public class Grabber extends SubsystemIF {
     public void transitionToCoralCollecting() {
         if (isHoldingCoral()) { return; }
         setTargetState(GrabberState.CORAL_COLLECTING);
+    }
+
+    public void transitionToFeederCollecting() {
+        if (isHoldingCoral()) { return; }
+        feederCollectionTimer.restart();
+        setTargetState(GrabberState.FEEDER_COLLECTING);
     }
 
     public void transitionToScoring() {

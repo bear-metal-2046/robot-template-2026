@@ -30,13 +30,16 @@ import org.tahomarobotics.robot.util.identity.Identity;
 
 public class GrabberConstants {
     public static final double CORAL_COLLECT_VELOCITY = RobotConfiguration.FEATURE_ALGAE_END_EFFECTOR ? -48 : -20;
+    public static final double FEEDER_COLLECT_VELOCITY = -12;
     public static final double ALGAE_COLLECT_VELOCITY = -10;
     public static final double SCORING_VELOCITY = 50;
-    public static final double L1_SCORING_VELOCITY = SCORING_VELOCITY * Math.E / 18;
+    public static final double L1_SCORING_VELOCITY = SCORING_VELOCITY * 0.2;
     public static final double CORAL_HOLD_VOLTAGE = RobotConfiguration.FEATURE_ALGAE_END_EFFECTOR ? 0 : -0.25;
     public static final double ALGAE_HOLD_VOLTAGE = -1.35;
 
     public static final double CORAL_COLLECTION_DELAY = 0.02;
+    public static final double FEEDER_COLLECTION_DELAY = 0.02;
+    public static final double FEEDER_COLLECTION_SPIKE_DELAY = 0.2;
     public static final double CORAL_INDEX_DELAY = 0.02;
     public static final double ALGAE_COLLECTION_DELAY = 0.1;
 
@@ -68,6 +71,7 @@ public class GrabberConstants {
         DISABLED(MotionType.NONE, 0),
         CORAL_HOLDING(MotionType.VOLTAGE, CORAL_HOLD_VOLTAGE),
         CORAL_COLLECTING(MotionType.VELOCITY, CORAL_COLLECT_VELOCITY),
+        FEEDER_COLLECTING(MotionType.VELOCITY, FEEDER_COLLECT_VELOCITY),
         ALGAE_HOLDING(MotionType.VOLTAGE, ALGAE_HOLD_VOLTAGE),
         ALGAE_COLLECTING(MotionType.VELOCITY, ALGAE_COLLECT_VELOCITY),
         AUTO_SCORING(MotionType.VELOCITY, SCORING_VELOCITY),

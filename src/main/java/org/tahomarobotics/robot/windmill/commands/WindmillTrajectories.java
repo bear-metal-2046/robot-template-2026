@@ -92,18 +92,28 @@ public class WindmillTrajectories {
         // Coral
         create(TrajectoryState.CORAL_COLLECT, TrajectoryState.L2);
         create(TrajectoryState.L2, TrajectoryState.CORAL_COLLECT);
+        create(TrajectoryState.FEEDER_COLLECT, TrajectoryState.L2);
+        create(TrajectoryState.L2, TrajectoryState.FEEDER_COLLECT);
 
-        create(TrajectoryState.CORAL_COLLECT, TrajectoryState.L1 );
+        create(TrajectoryState.CORAL_COLLECT, TrajectoryState.L1);
         create(TrajectoryState.L1, TrajectoryState.CORAL_COLLECT);
+        create(TrajectoryState.FEEDER_COLLECT, TrajectoryState.L1);
+        create(TrajectoryState.L1, TrajectoryState.FEEDER_COLLECT);
 
         create(TrajectoryState.STOW, TrajectoryState.CORAL_COLLECT);
         create(TrajectoryState.CORAL_COLLECT, TrajectoryState.STOW);
+        create(TrajectoryState.FEEDER_COLLECT, TrajectoryState.STOW);
+        create(TrajectoryState.STOW, TrajectoryState.FEEDER_COLLECT);
 
         create(TrajectoryState.CORAL_COLLECT, TrajectoryState.L3);
         create(TrajectoryState.L3, TrajectoryState.CORAL_COLLECT);
+        create(TrajectoryState.FEEDER_COLLECT, TrajectoryState.L3);
+        create(TrajectoryState.L3, TrajectoryState.FEEDER_COLLECT);
 
         create(TrajectoryState.CORAL_COLLECT, TrajectoryState.L4);
         create(TrajectoryState.L4, TrajectoryState.CORAL_COLLECT);
+        create(TrajectoryState.FEEDER_COLLECT, TrajectoryState.L4);
+        create(TrajectoryState.L4, TrajectoryState.FEEDER_COLLECT);
 
         create(TrajectoryState.L2, LARGE_PULLBACK, TrajectoryState.L3);
         create(TrajectoryState.L2, LARGE_PULLBACK, TrajectoryState.L4);
